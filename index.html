@@ -524,7 +524,88 @@ function renderOrderPanel() {
   });
 }
 
-function renderTicketCards() { /* stub — implemented in Task 6 */ }
+// ─── TICKET LIST ──────────────────────────────────────────────────────────────
+function renderTicketCards() {
+  const container = document.getElementById('ticket-cards');
+  if (appState.tickets.length === 0) {
+    container.innerHTML = '<p class="empty-list">No orders yet.</p>';
+    return;
+  }
+  container.innerHTML = appState.tickets.map(ticket => {
+    const isServed = ticket.status === 'Served';
+    const itemCount = ticket.lineItems.reduce((s, l) => s + l.quantity, 0);
+    const statusClass = 'status-' + ticket.status.toLowerCase();
+    return `
+      <div class="ticket-card ${isServed ? 'served' : ''}" data-ticket-id="${ticket.id}">
+        <div class="ticket-card-top">
+          <span class="ticket-num">${ticket.orderNum}</span>
+          <span class="ticket-total">${formatPrice(ticket.total)}</span>
+        </div>
+        <div class="ticket-meta">
+          <span class="ticket-count">${itemCount} item${itemCount !== 1 ? 's' : ''}</span>
+          <select class="status-select ${statusClass}" data-ticket-id="${ticket.id}" ${isServed ? 'disabled' : ''}>
+            ${['Pending','Preparing','Ready','Served'].map(s =>
+              `<option value="${s}" ${ticket.status === s ? 'selected' : ''}>${s}</option>`
+            ).join('')}
+          </select>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Card click → open in panel
+  container.querySelectorAll('.ticket-card:not(.served)').forEach(card => {
+    card.addEventListener('click', e => {
+      // Don't fire if clicking the dropdown itself
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+      const id = parseInt(card.dataset.ticketId, 10);
+      openTicketInPanel(id);
+    });
+  });
+
+  // Status dropdown change
+  container.querySelectorAll('.status-select').forEach(sel => {
+    sel.addEventListener('change', e => {
+      e.stopPropagation();
+      const id = parseInt(sel.dataset.ticketId, 10);
+      updateTicketStatus(id, sel.value);
+    });
+  });
+}
+
+function updateTicketStatus(id, status) {
+  const ticket = appState.tickets.find(t => t.id === id);
+  if (!ticket) return;
+  ticket.status = status;
+  if (status === 'Served') {
+    // If this ticket is open in the panel, silently discard and clear
+    if (appState.panelTicketId === id) {
+      closePanel();
+    }
+  }
+  renderTicketCards();
+}
+
+function openTicketInPanel(id) {
+  if (isDirty()) {
+    if (!confirm('You have an unsaved order. Discard it and start a new one?')) return;
+  }
+  const ticket = appState.tickets.find(t => t.id === id);
+  if (!ticket) return;
+  // Populate panelQtys from ticket's line items
+  appState.panelQtys = {};
+  ticket.lineItems.forEach(l => { appState.panelQtys[l.itemId] = l.quantity; });
+  appState.panelTicketId = id;
+  appState.panelOpen = true;
+  renderOrderPanel();
+  renderTicketCards();
+}
+
+function closePanel() {
+  appState.panelOpen = false;
+  appState.panelTicketId = null;
+  appState.panelQtys = {};
+  renderOrderPanel();
+}
 
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 seedMenuIfNeeded();
