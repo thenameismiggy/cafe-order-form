@@ -187,6 +187,8 @@ Four changes:
 
 **Part A — Add back button to `renderOrderPanel()` generated HTML**
 
+Note: The spec describes adding the back button as a static HTML element. This plan intentionally uses JS injection instead, because `renderOrderPanel()` replaces `#order-panel`'s entire `innerHTML` on every render — a static element would be destroyed. JS injection is more robust for this codebase.
+
 The back button (`id="btn-back-mobile"`) must be injected by JS because `renderOrderPanel()` replaces `#order-panel`'s entire `innerHTML`. The button is added inside the `<div class="panel-form">` as the first child, in both the "no items available" case and the normal order form case.
 
 Find the "no items available" render path (around line 490):
@@ -352,3 +354,4 @@ After all tasks complete:
 - [ ] Summary cards wrap to two rows on narrow screens
 - [ ] Confirmation modal fits within screen on mobile (no edge clipping)
 - [ ] Desktop layout (>768px) is completely unchanged — no regressions
+- [ ] Tapping "← Orders" does NOT discard panel quantities — reopening the same ticket shows unchanged values
