@@ -52,7 +52,9 @@ All amounts formatted as `₱N` (whole numbers, no decimals), consistent with th
 
 A table grouped by category (Drinks first, then Food), one row per menu item that has at least one unit across any tracked status.
 
-**Columns:** Item Name | Served (qty — subtotal) | Ready (qty — subtotal) | Preparing (qty — subtotal)
+**Columns:** Item Name | Served | Ready | Preparing
+
+Each status column cell shows quantity and subtotal in a single cell, e.g. `3 — ₱255`. If quantity is 0 for that status, the cell shows `—`.
 
 - Subtotal = quantity × unit price (the price recorded in the line item snapshot, not the current catalog price)
 - Items with zero quantity across all three statuses are hidden
