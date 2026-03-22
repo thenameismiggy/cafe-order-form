@@ -119,6 +119,8 @@
     /* === EMPTY STATES === */
     .empty-list { padding: 2rem 1rem; text-align: center; color: #aaa; font-size: 0.88rem; }
     .empty-table-row td { text-align: center; color: #aaa; padding: 1.5rem; }
+    .form-error { color: #c0392b; font-size: 0.82rem; margin-top: 0.5rem; min-height: 1em; }
+    .modal-order-num { color: #888; font-size: 0.88rem; margin-bottom: 0.75rem; }
   </style>
 </head>
 <body>
@@ -177,7 +179,7 @@
             <button type="submit" class="btn btn-primary">Add Item</button>
           </div>
         </div>
-        <p id="add-item-error" style="color:#c0392b;font-size:0.82rem;margin-top:0.5rem;min-height:1em;"></p>
+        <p id="add-item-error" class="form-error"></p>
       </form>
     </div>
 
@@ -188,7 +190,7 @@
   <div id="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box">
       <h2 id="modal-title">Order Submitted</h2>
-      <div id="modal-order-num" style="color:#888;font-size:0.88rem;margin-bottom:0.75rem;"></div>
+      <div id="modal-order-num" class="modal-order-num"></div>
       <div class="modal-line-items" id="modal-line-items"></div>
       <div class="modal-total">
         <span>Total</span>
