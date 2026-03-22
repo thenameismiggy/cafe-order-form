@@ -375,11 +375,8 @@ function saveEditRow(id) {
   const category = row.querySelector('.edit-category').value;
   const available = row.querySelector('.edit-available').checked;
 
-  if (!name || name.length > 50 || isNaN(price) || price < 1) {
-    row.querySelector('.edit-name').reportValidity();
-    row.querySelector('.edit-price').reportValidity();
-    return;
-  }
+  if (!name || name.length > 50) { row.querySelector('.edit-name').reportValidity(); return; }
+  if (isNaN(price) || price < 1) { row.querySelector('.edit-price').reportValidity(); return; }
 
   const menu = getMenu();
   const idx = menu.findIndex(i => i.id === id);
