@@ -80,6 +80,7 @@
     .btn-new-order { width: 100%; padding: 0.65rem; border: 2px dashed #ccc; background: none; border-radius: 6px; color: #666; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: border-color 0.15s, color 0.15s; margin-top: auto; }
     .btn-new-order:hover { border-color: #1a1a2e; color: #1a1a2e; }
     #btn-back-mobile { display: none; }
+    .draft-banner { display: none; }
 
     /* === ADMIN TAB === */
     #admin-tab { padding: 1.5rem; max-width: 760px; }
@@ -163,6 +164,9 @@
       /* Back button — visible on mobile only */
       #btn-back-mobile { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 1rem; }
 
+      /* Draft banner — visible on mobile when a draft order is in progress */
+      .draft-banner.draft-active { display: flex; align-items: center; justify-content: space-between; background: #fff8e1; border: 1.5px solid #f59e0b; border-radius: 6px; padding: 0.6rem 0.75rem; margin: 0.5rem 0.75rem 0; font-size: 0.85rem; font-weight: 500; color: #92400e; cursor: pointer; width: calc(100% - 1.5rem); }
+
       /* Admin tab */
       #admin-tab { padding: 1rem; }
       .table-scroll-wrap { overflow-x: auto; }
@@ -194,6 +198,7 @@
       <div class="ticket-list-header">
         <h2>Active Orders</h2>
       </div>
+      <button id="draft-banner" class="draft-banner"></button>
       <div id="ticket-cards"><!-- rendered by JS --></div>
       <button class="btn-new-order" id="btn-new-order">+ New Order</button>
     </aside>
@@ -634,7 +639,23 @@ function renderTicketCards() {
       updateTicketStatus(id, sel.value);
     });
   });
+
+  renderDraftBanner();
 }
+
+function renderDraftBanner() {
+  const banner = document.getElementById('draft-banner');
+  if (appState.panelOpen) {
+    banner.innerHTML = '<span>Draft in progress</span><span>Tap to resume →</span>';
+    banner.classList.add('draft-active');
+  } else {
+    banner.classList.remove('draft-active');
+  }
+}
+
+document.getElementById('draft-banner').addEventListener('click', () => {
+  document.getElementById('orders-tab').classList.add('panel-open');
+});
 
 function updateTicketStatus(id, status) {
   const ticket = appState.tickets.find(t => t.id === id);
@@ -840,7 +861,7 @@ document.getElementById('order-panel').addEventListener('click', e => {
   if (btn.id === 'btn-save')        handleSave();
   if (btn.id === 'btn-submit')      handleSubmit();
   if (btn.id === 'btn-cancel')      handleCancel();
-  if (btn.id === 'btn-back-mobile') document.getElementById('orders-tab').classList.remove('panel-open'); // view-switch only — preserves panel state (not a cancel)
+  if (btn.id === 'btn-back-mobile') { document.getElementById('orders-tab').classList.remove('panel-open'); renderDraftBanner(); } // view-switch only — preserves panel state (not a cancel)
 });
 
 function validatePanel() {
