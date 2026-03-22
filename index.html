@@ -279,6 +279,94 @@ function initTabs() {
   });
 }
 
+// ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
+let editingRowId = null; // id of menu item currently being inline-edited
+
+function renderMenuTable() {
+  const menu = getMenu() || [];
+  const container = document.getElementById('menu-table');
+  const categories = ['Drinks', 'Food'];
+
+  if (menu.length === 0) {
+    container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
+    return;
+  }
+
+  container.innerHTML = categories.map(cat => {
+    const items = menu.filter(i => i.category === cat);
+    if (items.length === 0) return '';
+    return `
+      <div class="menu-table-category">
+        <div class="menu-table-category-header">${cat}</div>
+        <table>
+          <thead><tr><th>Name</th><th>Price</th><th>Available</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${items.map(item => renderMenuRow(item)).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  // re-attach edit/delete handlers
+  container.querySelectorAll('[data-action]').forEach(el => {
+    el.addEventListener('click', handleMenuAction);
+  });
+}
+
+function renderMenuRow(item) {
+  if (editingRowId === item.id) {
+    return `
+      <tr data-id="${item.id}">
+        <td><input type="text" class="edit-name" value="${escHtml(item.name)}" maxlength="50" required></td>
+        <td><input type="number" class="edit-price" value="${item.price}" min="1" step="1" required></td>
+        <td>
+          <select class="edit-category">
+            <option value="Drinks" ${item.category === 'Drinks' ? 'selected' : ''}>Drinks</option>
+            <option value="Food"   ${item.category === 'Food'   ? 'selected' : ''}>Food</option>
+          </select>
+          <input type="checkbox" class="edit-available" ${item.available ? 'checked' : ''} title="Available">
+        </td>
+        <td class="td-actions">
+          <button class="btn btn-sm btn-primary" data-action="save-edit" data-id="${item.id}">Save</button>
+          <button class="btn btn-sm btn-ghost"   data-action="cancel-edit" data-id="${item.id}">Cancel</button>
+        </td>
+      </tr>`;
+  }
+  return `
+    <tr data-id="${item.id}">
+      <td>${escHtml(item.name)}</td>
+      <td>${formatPrice(item.price)}</td>
+      <td>${item.available ? 'Yes' : 'No'}</td>
+      <td class="td-actions">
+        <button class="btn btn-sm btn-ghost"   data-action="edit"   data-id="${item.id}">Edit</button>
+        <button class="btn btn-sm btn-danger"  data-action="delete" data-id="${item.id}">Delete</button>
+      </td>
+    </tr>`;
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function handleMenuAction(e) {
+  const action = e.currentTarget.dataset.action;
+  const id = parseInt(e.currentTarget.dataset.id, 10);
+  if (action === 'edit')             startEditRow(id);
+  else if (action === 'cancel-edit') cancelEditRow();
+  else if (action === 'save-edit')   saveEditRow(id);
+  else if (action === 'delete')      deleteMenuItem(id);
+}
+
+function startEditRow(id) {
+  editingRowId = id;
+  renderMenuTable();
+}
+
+function cancelEditRow() {
+  editingRowId = null;
+  renderMenuTable();
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 seedMenuIfNeeded();
 initTabs();
