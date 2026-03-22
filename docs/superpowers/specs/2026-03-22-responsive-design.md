@@ -43,9 +43,11 @@ CSS rules for `#orders-tab.panel-open` on mobile:
 - `.ticket-list` is hidden (`display: none`)
 - `.order-panel` is shown (`display: block`), takes full width
 
+Note: `#orders-tab` is only `display: flex` when `.active` is also present. The media query CSS rules target `#orders-tab.panel-open .ticket-list` etc. — these selectors are only meaningful when the Orders tab is active, which is the only time `panel-open` is ever added.
+
 ### Back button
 
-A "← Orders" button is added at the top of the order panel in the HTML. On desktop it is hidden (`display: none`). On mobile it is shown (`display: block`).
+A "← Orders" button is added as the **first child** of `<main class="order-panel" id="order-panel">` in the HTML, before the JS-rendered content. On desktop it is hidden (`display: none`). On mobile it is shown (`display: block`).
 
 Clicking the back button:
 - Removes `panel-open` from `#orders-tab`
@@ -69,7 +71,7 @@ The back button gets a direct click listener that removes `panel-open`.
 On mobile:
 
 - `#admin-tab` padding reduces to `1rem`
-- The menu table (`#menu-table`) is wrapped in a `<div class="table-scroll-wrap">` in the HTML
+- The menu table (`#menu-table`) is wrapped in a `<div class="table-scroll-wrap">` in the HTML. The wrapper div is the **outer** container — `#menu-table` remains intact as the inner element that JS renders into (`document.getElementById('menu-table')` still works unchanged).
 - `.table-scroll-wrap` gets `overflow-x: auto` so the admin table scrolls horizontally rather than overflowing
 - Inline edit text inputs (`td input[type="text"]`) width reduces from `160px` to `120px`
 
@@ -81,7 +83,7 @@ On mobile:
 
 - `#report-tab` padding reduces to `1rem`
 - Summary cards (`.report-summary-cards`) already use `flex-wrap: wrap` with `min-width: 180px` — no changes needed
-- `.report-table-wrap` gets `overflow-x: auto` so the item breakdown table scrolls horizontally
+- `.report-table-wrap` gets `overflow-x: auto` in the media query. Note: `.report-table-wrap` already has `overflow: hidden` in the base CSS (for border-radius clipping). The media query rule placed later in the stylesheet overrides this in the x-axis, enabling horizontal scroll on mobile.
 - Per-order entries (`.report-order-entry`) are already column layout — no changes needed
 
 ---
