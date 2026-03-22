@@ -291,21 +291,20 @@ function formatPrice(n) {
 
 // ─── TAB SWITCHING ────────────────────────────────────────────────────────────
 function initTabs() {
+  const TAB_IDS = ['orders-tab', 'admin-tab', 'report-tab'];
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const tabId = btn.dataset.tab;
+      // Update active button
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const ordersTab = document.getElementById('orders-tab');
-      const adminTab  = document.getElementById('admin-tab');
-      if (tabId === 'orders-tab') {
-        ordersTab.classList.add('active');
-        adminTab.classList.remove('active');
-      } else {
-        ordersTab.classList.remove('active');
-        adminTab.classList.add('active');
-        renderMenuTable();
-      }
+      // Update active panel
+      TAB_IDS.forEach(id => {
+        document.getElementById(id).classList.toggle('active', id === tabId);
+      });
+      // Per-tab side effects
+      if (tabId === 'admin-tab') renderMenuTable();
+      if (tabId === 'report-tab') renderReportTab();
     });
   });
 }
@@ -617,6 +616,147 @@ function updateTicketStatus(id, status) {
     renderOrderPanel();
   }
   renderTicketCards();
+}
+
+// ─── REPORT TAB ───────────────────────────────────────────────────────────────
+function renderReportTab() {
+  // Only render if report tab is active to avoid unnecessary DOM work
+  const reportPanel = document.getElementById('report-tab');
+  if (!reportPanel.classList.contains('active')) return;
+
+  const TRACKED = ['Served', 'Ready', 'Preparing'];
+  const tickets = appState.tickets.filter(t => TRACKED.includes(t.status));
+  const container = document.getElementById('report-content');
+
+  if (tickets.length === 0) {
+    container.innerHTML = '<p class="report-empty">No orders have been placed yet this session.</p>';
+    return;
+  }
+
+  // ── Summary cards ──────────────────────────────────────────────────────────
+  function sumByStatus(status) {
+    return appState.tickets
+      .filter(t => t.status === status)
+      .reduce((s, t) => s + t.total, 0);
+  }
+  const cardsHtml = `
+    <div class="report-summary-cards">
+      <div class="summary-card">
+        <div class="summary-card-label">Confirmed Revenue</div>
+        <div class="summary-card-value">${formatPrice(sumByStatus('Served'))}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Awaiting Pickup</div>
+        <div class="summary-card-value">${formatPrice(sumByStatus('Ready'))}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">In Preparation</div>
+        <div class="summary-card-value">${formatPrice(sumByStatus('Preparing'))}</div>
+      </div>
+    </div>`;
+
+  // ── Item breakdown table ───────────────────────────────────────────────────
+  const itemMap = {};
+  const menu = getMenu() || [];
+  tickets.forEach(ticket => {
+    ticket.lineItems.forEach(l => {
+      if (!itemMap[l.itemId]) {
+        const menuItem = menu.find(m => m.id === l.itemId);
+        itemMap[l.itemId] = {
+          name: l.name,
+          category: menuItem ? menuItem.category : 'Other',
+          Served:    { qty: 0, sub: 0 },
+          Ready:     { qty: 0, sub: 0 },
+          Preparing: { qty: 0, sub: 0 },
+        };
+      }
+      const entry = itemMap[l.itemId][ticket.status];
+      entry.qty += l.quantity;
+      entry.sub += l.price * l.quantity;
+    });
+  });
+
+  function cellHtml(entry) {
+    return entry.qty === 0 ? '—' : `${entry.qty} — ${formatPrice(entry.sub)}`;
+  }
+
+  const categories = ['Drinks', 'Food'];
+  let tableBody = '';
+  categories.forEach(cat => {
+    const items = Object.values(itemMap).filter(i => i.category === cat);
+    if (items.length === 0) return;
+    tableBody += `<tr class="cat-header"><td colspan="4">${escHtml(cat)}</td></tr>`;
+    items.forEach(item => {
+      tableBody += `
+        <tr>
+          <td>${escHtml(item.name)}</td>
+          <td>${cellHtml(item.Served)}</td>
+          <td>${cellHtml(item.Ready)}</td>
+          <td>${cellHtml(item.Preparing)}</td>
+        </tr>`;
+    });
+  });
+  const otherItems = Object.values(itemMap).filter(i => !categories.includes(i.category));
+  if (otherItems.length > 0) {
+    tableBody += `<tr class="cat-header"><td colspan="4">Other</td></tr>`;
+    otherItems.forEach(item => {
+      tableBody += `
+        <tr>
+          <td>${escHtml(item.name)}</td>
+          <td>${cellHtml(item.Served)}</td>
+          <td>${cellHtml(item.Ready)}</td>
+          <td>${cellHtml(item.Preparing)}</td>
+        </tr>`;
+    });
+  }
+
+  const tableHtml = `
+    <div class="report-section">
+      <h3>Item Breakdown</h3>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Served</th>
+              <th>Ready</th>
+              <th>Preparing</th>
+            </tr>
+          </thead>
+          <tbody>${tableBody}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // ── Per-order list ─────────────────────────────────────────────────────────
+  const statusClass = { Served: 'status-served', Ready: 'status-ready', Preparing: 'status-preparing' };
+  const sortedTickets = tickets.slice().sort((a, b) => a.orderNum.localeCompare(b.orderNum));
+  const ordersHtml = `
+    <div class="report-section">
+      <h3>Order Details</h3>
+      <div class="report-orders">
+        ${sortedTickets.map(ticket => `
+          <div class="report-order-entry">
+            <div class="report-order-header">
+              <span>${escHtml(ticket.orderNum)}</span>
+              <span class="status-badge ${statusClass[ticket.status]}">${ticket.status}</span>
+            </div>
+            <div class="report-order-items">
+              ${ticket.lineItems.map(l => `
+                <div class="report-order-line">
+                  <span>${escHtml(l.name)} × ${l.quantity}</span>
+                  <span>${formatPrice(l.price * l.quantity)}</span>
+                </div>`).join('')}
+              <div class="report-order-total">
+                <span>Total</span>
+                <span>${formatPrice(ticket.total)}</span>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  container.innerHTML = cardsHtml + tableHtml + ordersHtml;
 }
 
 function openTicketInPanel(id) {
