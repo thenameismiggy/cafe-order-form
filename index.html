@@ -620,8 +620,8 @@ function updateTicketStatus(id, status) {
 
 // ─── REPORT TAB ───────────────────────────────────────────────────────────────
 function renderReportTab() {
-  // Guard: called from state mutations (updateTicketStatus, handleSave, handleSubmit) —
-  // skip the render if the report tab is not currently visible.
+  // Guard: will be called from state mutations (updateTicketStatus, handleSave, handleSubmit) —
+  // skip the render when the report tab is not currently visible.
   const reportPanel = document.getElementById('report-tab');
   if (!reportPanel.classList.contains('active')) return;
 
