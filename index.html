@@ -453,7 +453,7 @@ function renderOrderPanel() {
   const availableItems = menu.filter(i => i.available);
   const isEdit = appState.panelTicketId !== null;
   const ticket = isEdit ? appState.tickets.find(t => t.id === appState.panelTicketId) : null;
-  const title = isEdit ? `Editing ${ticket.orderNum}` : 'New Order';
+  const title = isEdit ? `Editing ${escHtml(ticket.orderNum)}` : 'New Order';
   const total = computeTotal(appState.panelQtys);
 
   if (availableItems.length === 0) {
