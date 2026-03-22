@@ -730,7 +730,7 @@ function renderReportTab() {
 
   // ── Per-order list ─────────────────────────────────────────────────────────
   const statusClass = { Served: 'status-served', Ready: 'status-ready', Preparing: 'status-preparing' };
-  const sortedTickets = tickets.slice().sort((a, b) => a.orderNum.localeCompare(b.orderNum));
+  const sortedTickets = tickets.slice().sort((a, b) => parseInt(a.orderNum.slice(1), 10) - parseInt(b.orderNum.slice(1), 10));
   const ordersHtml = `
     <div class="report-section">
       <h3>Order Details</h3>
@@ -739,7 +739,7 @@ function renderReportTab() {
           <div class="report-order-entry">
             <div class="report-order-header">
               <span>${escHtml(ticket.orderNum)}</span>
-              <span class="status-badge ${statusClass[ticket.status]}">${ticket.status}</span>
+              <span class="status-badge ${statusClass[ticket.status]}">${escHtml(ticket.status)}</span>
             </div>
             <div class="report-order-items">
               ${ticket.lineItems.map(l => `
