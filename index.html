@@ -684,6 +684,65 @@ function handleCancel() {
   renderTicketCards();
 }
 
+// ─── SUBMIT ───────────────────────────────────────────────────────────────────
+function handleSubmit() {
+  if (!validatePanel()) return;
+  const lineItems = buildLineItems();
+  const total = lineItems.reduce((s, l) => s + l.price * l.quantity, 0);
+
+  let orderNum;
+  if (appState.panelTicketId !== null) {
+    const ticket = appState.tickets.find(t => t.id === appState.panelTicketId);
+    if (ticket) {
+      ticket.lineItems = lineItems;
+      ticket.total = total;
+      ticket.status = 'Served';
+      orderNum = ticket.orderNum;
+    }
+  } else {
+    orderNum = '#' + String(appState.nextOrderNum++).padStart(3, '0');
+    appState.tickets.push({
+      id: Date.now(),
+      orderNum,
+      status: 'Served',
+      lineItems,
+      total,
+    });
+  }
+
+  closePanel();
+  renderTicketCards();
+  showModal(orderNum, lineItems, total);
+}
+
+// ─── CONFIRMATION MODAL ───────────────────────────────────────────────────────
+function showModal(orderNum, lineItems, total) {
+  document.getElementById('modal-order-num').textContent = 'Order ' + orderNum;
+  document.getElementById('modal-line-items').innerHTML = lineItems.map(l => `
+    <div class="modal-line-item">
+      <span>${escHtml(l.name)} × ${l.quantity}</span>
+      <span>${formatPrice(l.price * l.quantity)}</span>
+    </div>`).join('');
+  document.getElementById('modal-total').textContent = formatPrice(total);
+  document.getElementById('confirmation-modal').classList.add('open');
+}
+
+function hideModal() {
+  document.getElementById('confirmation-modal').classList.remove('open');
+}
+
+document.getElementById('btn-modal-done').addEventListener('click', hideModal);
+
+// Dismiss on backdrop click
+document.getElementById('confirmation-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('confirmation-modal')) hideModal();
+});
+
+// Dismiss on Escape key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') hideModal();
+});
+
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 seedMenuIfNeeded();
 initTabs();
