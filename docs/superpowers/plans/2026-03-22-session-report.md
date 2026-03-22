@@ -253,11 +253,12 @@ function renderReportTab() {
 
   // ── Per-order list ─────────────────────────────────────────────────────────
   const statusClass = { Served: 'status-served', Ready: 'status-ready', Preparing: 'status-preparing' };
+  const sortedTickets = tickets.slice().sort((a, b) => a.orderNum.localeCompare(b.orderNum));
   const ordersHtml = `
     <div class="report-section">
       <h3>Order Details</h3>
       <div class="report-orders">
-        ${tickets.map(ticket => `
+        ${sortedTickets.map(ticket => `
           <div class="report-order-entry">
             <div class="report-order-header">
               <span>${escHtml(ticket.orderNum)}</span>
@@ -484,7 +485,7 @@ After all tasks are complete, do a full end-to-end check:
 
 - [ ] Three tabs visible: Orders, Admin, Report
 - [ ] Report tab shows empty state on fresh page load
-- [ ] Summary cards show ₱0 for all statuses when no qualifying tickets exist
+- [ ] When some but not all statuses have tickets, summary cards with no matching tickets show ₱0
 - [ ] Item breakdown groups by Drinks then Food; items with 0 qty across all statuses are hidden
 - [ ] Zero-quantity status cells display `—`
 - [ ] Per-order list shows orders in ascending order number sequence
