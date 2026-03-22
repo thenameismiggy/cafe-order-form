@@ -616,6 +616,7 @@ function updateTicketStatus(id, status) {
     renderOrderPanel();
   }
   renderTicketCards();
+  renderReportTab();
 }
 
 // ─── REPORT TAB ───────────────────────────────────────────────────────────────
@@ -852,6 +853,7 @@ function handleSave() {
   }
   closePanel();
   renderTicketCards();
+  renderReportTab();
 }
 
 function handleCancel() {
@@ -887,6 +889,7 @@ function handleSubmit() {
 
   closePanel();
   renderTicketCards();
+  renderReportTab();
   showModal(orderNum, lineItems, total);
 }
 
