@@ -607,6 +607,83 @@ function closePanel() {
   renderOrderPanel();
 }
 
+// ─── NEW ORDER BUTTON ─────────────────────────────────────────────────────────
+document.getElementById('btn-new-order').addEventListener('click', () => {
+  if (isDirty()) {
+    if (!confirm('You have an unsaved order. Discard it and start a new one?')) return;
+  }
+  appState.panelTicketId = null;
+  appState.panelQtys = {};
+  appState.panelOpen = true;
+  renderOrderPanel();
+  renderTicketCards();
+});
+
+// ─── PANEL ACTION HANDLERS (delegated) ───────────────────────────────────────
+// Event delegation on the panel container since buttons are re-rendered on each update.
+document.getElementById('order-panel').addEventListener('click', e => {
+  const btn = e.target.closest('button[id]');
+  if (!btn) return;
+  if (btn.id === 'btn-save')   handleSave();
+  if (btn.id === 'btn-submit') handleSubmit();
+  if (btn.id === 'btn-cancel') handleCancel();
+});
+
+function validatePanel() {
+  const hasItems = Object.values(appState.panelQtys).some(q => q > 0);
+  if (!hasItems) {
+    const errEl = document.getElementById('panel-error');
+    if (errEl) errEl.textContent = 'Add at least one item.';
+    return false;
+  }
+  return true;
+}
+
+function buildLineItems() {
+  const menu = getMenu() || [];
+  return menu
+    .filter(item => (appState.panelQtys[item.id] || 0) > 0)
+    .map(item => ({
+      itemId: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: appState.panelQtys[item.id],
+    }));
+}
+
+function handleSave() {
+  if (!validatePanel()) return;
+  const lineItems = buildLineItems();
+  const total = lineItems.reduce((s, l) => s + l.price * l.quantity, 0);
+
+  if (appState.panelTicketId !== null) {
+    // Update existing ticket
+    const ticket = appState.tickets.find(t => t.id === appState.panelTicketId);
+    if (ticket) {
+      ticket.lineItems = lineItems;
+      ticket.total = total;
+      ticket.status = 'Pending';
+    }
+  } else {
+    // Create new ticket
+    const orderNum = '#' + String(appState.nextOrderNum++).padStart(3, '0');
+    appState.tickets.push({
+      id: Date.now(),
+      orderNum,
+      status: 'Pending',
+      lineItems,
+      total,
+    });
+  }
+  closePanel();
+  renderTicketCards();
+}
+
+function handleCancel() {
+  closePanel();
+  renderTicketCards();
+}
+
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 seedMenuIfNeeded();
 initTabs();
