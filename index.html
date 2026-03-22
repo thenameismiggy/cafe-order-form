@@ -265,17 +265,14 @@ function initTabs() {
       const tabId = btn.dataset.tab;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      // orders tab uses flex layout, others use block
       const ordersTab = document.getElementById('orders-tab');
       const adminTab  = document.getElementById('admin-tab');
       if (tabId === 'orders-tab') {
         ordersTab.classList.add('active');
         adminTab.classList.remove('active');
-        adminTab.style.display = 'none';
       } else {
         ordersTab.classList.remove('active');
-        adminTab.classList.remove('active'); // reset
-        adminTab.style.display = 'block';
+        adminTab.classList.add('active');
         renderMenuTable();
       }
     });
