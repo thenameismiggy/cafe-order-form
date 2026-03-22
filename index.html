@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Café Order Form</title>
+  <style>
+    /* === RESET & BASE === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; font-size: 15px; background: #f5f5f5; color: #222; min-height: 100vh; }
+
+    /* === HEADER / TABS === */
+    header { background: #1a1a2e; padding: 0 1.5rem; display: flex; align-items: center; gap: 2rem; }
+    header h1 { color: #fff; font-size: 1.1rem; padding: 1rem 0; white-space: nowrap; }
+    .tab-nav { display: flex; gap: 0; }
+    .tab-btn { background: none; border: none; color: #aaa; padding: 1rem 1.25rem; cursor: pointer; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active { color: #fff; border-bottom-color: #e94560; }
+
+    /* === TAB PANELS === */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* === ORDERS TAB LAYOUT === */
+    #orders-tab { display: none; }
+    #orders-tab.active { display: flex; height: calc(100vh - 56px); overflow: hidden; }
+    .ticket-list { width: 300px; min-width: 260px; background: #fff; border-right: 1px solid #e0e0e0; overflow-y: auto; display: flex; flex-direction: column; }
+    .ticket-list-header { padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #fff; z-index: 1; }
+    .ticket-list-header h2 { font-size: 1rem; }
+    .order-panel { flex: 1; overflow-y: auto; padding: 1.5rem; background: #f5f5f5; }
+
+    /* === TICKET CARDS === */
+    .ticket-card { padding: 0.85rem 1rem; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: background 0.1s; }
+    .ticket-card:hover:not(.served) { background: #f9f9f9; }
+    .ticket-card.served { opacity: 0.5; cursor: default; }
+    .ticket-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+    .ticket-num { font-weight: 700; font-size: 0.95rem; }
+    .ticket-total { font-weight: 600; color: #333; }
+    .ticket-meta { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .ticket-count { font-size: 0.8rem; color: #888; }
+    .status-select { font-size: 0.78rem; border: 1px solid #ddd; border-radius: 4px; padding: 0.2rem 0.4rem; background: #fff; cursor: pointer; }
+
+    /* === STATUS BADGES === */
+    .status-badge { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .status-pending  { background: #e8e8e8; color: #555; }
+    .status-preparing { background: #fff3cd; color: #856404; }
+    .status-ready    { background: #d1f7d1; color: #1a6a1a; }
+    .status-served   { background: #f0f0f0; color: #aaa; }
+
+    /* === ORDER PANEL CONTENT === */
+    .panel-empty { color: #888; text-align: center; padding: 3rem 1rem; }
+    .panel-form { background: #fff; border-radius: 8px; padding: 1.25rem; max-width: 640px; }
+    .panel-form h2 { font-size: 1rem; margin-bottom: 1rem; color: #555; }
+    .menu-category { margin-bottom: 1.25rem; }
+    .menu-category h3 { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 0.6rem; padding-bottom: 0.4rem; border-bottom: 1px solid #eee; }
+    .menu-item-row { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #f5f5f5; }
+    .menu-item-row:last-child { border-bottom: none; }
+    .item-info { display: flex; flex-direction: column; gap: 0.15rem; }
+    .item-name { font-size: 0.92rem; }
+    .item-price { font-size: 0.8rem; color: #888; }
+    .stepper { display: flex; align-items: center; gap: 0.5rem; }
+    .stepper button { width: 28px; height: 28px; border: 1px solid #ddd; background: #f5f5f5; border-radius: 4px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: background 0.1s; }
+    .stepper button:hover:not(:disabled) { background: #e0e0e0; }
+    .stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .stepper .qty { width: 28px; text-align: center; font-weight: 600; font-size: 0.92rem; }
+
+    /* === RUNNING TOTAL === */
+    .panel-total { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 0; margin-top: 0.75rem; border-top: 2px solid #eee; font-weight: 700; font-size: 1.05rem; }
+    .panel-error { color: #c0392b; font-size: 0.85rem; margin-top: 0.5rem; min-height: 1.2em; }
+    .panel-actions { display: flex; gap: 0.75rem; margin-top: 1rem; }
+
+    /* === BUTTONS === */
+    .btn { padding: 0.55rem 1.1rem; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #1a1a2e; color: #fff; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-danger  { background: #e94560; color: #fff; }
+    .btn-ghost   { background: #e8e8e8; color: #333; }
+    .btn-sm      { padding: 0.35rem 0.75rem; font-size: 0.82rem; }
+    .btn-new-order { width: 100%; padding: 0.65rem; border: 2px dashed #ccc; background: none; border-radius: 6px; color: #666; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: border-color 0.15s, color 0.15s; margin-top: auto; }
+    .btn-new-order:hover { border-color: #1a1a2e; color: #1a1a2e; }
+
+    /* === ADMIN TAB === */
+    #admin-tab { padding: 1.5rem; max-width: 760px; }
+    #admin-tab h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .add-item-form { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .add-item-form h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+    .form-group label { font-size: 0.8rem; color: #666; font-weight: 600; }
+    .form-group input, .form-group select { padding: 0.45rem 0.65rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88rem; }
+    .form-group input:focus, .form-group select:focus { outline: 2px solid #1a1a2e; border-color: transparent; }
+    .form-group.checkbox-group { flex-direction: row; align-items: center; gap: 0.5rem; padding-bottom: 0.45rem; }
+    .form-group.checkbox-group label { margin: 0; }
+    .menu-table { background: #fff; border-radius: 8px; overflow: hidden; }
+    .menu-table-category { border-bottom: 2px solid #eee; }
+    .menu-table-category:last-child { border-bottom: none; }
+    .menu-table-category-header { padding: 0.6rem 1rem; background: #f9f9f9; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #888; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 0.55rem 1rem; font-size: 0.8rem; color: #888; font-weight: 600; background: #fafafa; border-bottom: 1px solid #eee; }
+    td { padding: 0.6rem 1rem; font-size: 0.88rem; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    td input, td select { padding: 0.35rem 0.5rem; border: 1px solid #bbb; border-radius: 4px; font-size: 0.85rem; }
+    td input[type="text"] { width: 160px; }
+    td input[type="number"] { width: 70px; }
+    .td-actions { display: flex; gap: 0.4rem; }
+
+    /* === CONFIRMATION MODAL === */
+    #confirmation-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+    #confirmation-modal.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 10px; padding: 1.75rem; width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .modal-box h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .modal-line-items { margin-bottom: 1rem; }
+    .modal-line-item { display: flex; justify-content: space-between; padding: 0.35rem 0; font-size: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+    .modal-line-item:last-child { border-bottom: none; }
+    .modal-total { display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 2px solid #eee; font-weight: 700; font-size: 1rem; margin-bottom: 1.25rem; }
+    .modal-actions { display: flex; justify-content: flex-end; }
+
+    /* === EMPTY STATES === */
+    .empty-list { padding: 2rem 1rem; text-align: center; color: #aaa; font-size: 0.88rem; }
+    .empty-table-row td { text-align: center; color: #aaa; padding: 1.5rem; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>☕ Café Orders</h1>
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="orders-tab">Orders</button>
+      <button class="tab-btn" data-tab="admin-tab">Admin</button>
+    </nav>
+  </header>
+
+  <!-- ORDERS TAB -->
+  <div id="orders-tab" class="active">
+    <aside class="ticket-list">
+      <div class="ticket-list-header">
+        <h2>Active Orders</h2>
+      </div>
+      <div id="ticket-cards"><!-- rendered by JS --></div>
+      <button class="btn-new-order" id="btn-new-order">+ New Order</button>
+    </aside>
+
+    <main class="order-panel" id="order-panel">
+      <p class="panel-empty">Select an order or start a new one.</p>
+    </main>
+  </div>
+
+  <!-- ADMIN TAB -->
+  <div id="admin-tab" class="tab-panel">
+    <h2>Menu Management</h2>
+
+    <div class="add-item-form">
+      <h3>Add New Item</h3>
+      <form id="add-item-form" novalidate>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="new-name">Name</label>
+            <input type="text" id="new-name" maxlength="50" required placeholder="e.g. Caramel Macchiato">
+          </div>
+          <div class="form-group">
+            <label for="new-price">Price (₱)</label>
+            <input type="number" id="new-price" min="1" step="1" required placeholder="85">
+          </div>
+          <div class="form-group">
+            <label for="new-category">Category</label>
+            <select id="new-category">
+              <option value="Drinks">Drinks</option>
+              <option value="Food">Food</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="new-available" checked>
+            <label for="new-available">Available</label>
+          </div>
+          <div class="form-group">
+            <button type="submit" class="btn btn-primary">Add Item</button>
+          </div>
+        </div>
+        <p id="add-item-error" style="color:#c0392b;font-size:0.82rem;margin-top:0.5rem;min-height:1em;"></p>
+      </form>
+    </div>
+
+    <div class="menu-table" id="menu-table"><!-- rendered by JS --></div>
+  </div>
+
+  <!-- CONFIRMATION MODAL -->
+  <div id="confirmation-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box">
+      <h2 id="modal-title">Order Submitted</h2>
+      <div id="modal-order-num" style="color:#888;font-size:0.88rem;margin-bottom:0.75rem;"></div>
+      <div class="modal-line-items" id="modal-line-items"></div>
+      <div class="modal-total">
+        <span>Total</span>
+        <span id="modal-total"></span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="btn-modal-done">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // JS goes here — added in subsequent tasks
+  </script>
+</body>
+</html>
