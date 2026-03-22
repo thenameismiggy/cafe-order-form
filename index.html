@@ -367,6 +367,64 @@ function cancelEditRow() {
   renderMenuTable();
 }
 
+// ─── ADMIN: SAVE EDIT ROW ─────────────────────────────────────────────────────
+function saveEditRow(id) {
+  const row = document.querySelector(`tr[data-id="${id}"]`);
+  const name  = row.querySelector('.edit-name').value.trim();
+  const price = parseInt(row.querySelector('.edit-price').value, 10);
+  const category = row.querySelector('.edit-category').value;
+  const available = row.querySelector('.edit-available').checked;
+
+  if (!name || name.length > 50 || isNaN(price) || price < 1) {
+    row.querySelector('.edit-name').reportValidity();
+    row.querySelector('.edit-price').reportValidity();
+    return;
+  }
+
+  const menu = getMenu();
+  const idx = menu.findIndex(i => i.id === id);
+  if (idx === -1) return;
+  menu[idx] = { id, name, price, category, available };
+  saveMenu(menu);
+  editingRowId = null;
+  renderMenuTable();
+}
+
+// ─── ADMIN: DELETE MENU ITEM ──────────────────────────────────────────────────
+function deleteMenuItem(id) {
+  const menu = getMenu();
+  const item = menu.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`Delete "${item.name}"?`)) return;
+  saveMenu(menu.filter(i => i.id !== id));
+  editingRowId = null;
+  renderMenuTable();
+}
+
+// ─── ADMIN: ADD ITEM FORM ─────────────────────────────────────────────────────
+document.getElementById('add-item-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const nameEl  = document.getElementById('new-name');
+  const priceEl = document.getElementById('new-price');
+  const errorEl = document.getElementById('add-item-error');
+
+  const name  = nameEl.value.trim();
+  const price = parseInt(priceEl.value, 10);
+  const category  = document.getElementById('new-category').value;
+  const available = document.getElementById('new-available').checked;
+
+  errorEl.textContent = '';
+  if (!name || name.length > 50) { errorEl.textContent = 'Name is required (max 50 characters).'; return; }
+  if (isNaN(price) || price < 1) { errorEl.textContent = 'Price must be at least ₱1.'; return; }
+
+  const menu = getMenu() || [];
+  menu.push({ id: nextMenuId(), name, price, category, available });
+  saveMenu(menu);
+  this.reset();
+  document.getElementById('new-available').checked = true;
+  renderMenuTable();
+});
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 seedMenuIfNeeded();
 initTabs();
