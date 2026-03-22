@@ -25,6 +25,7 @@ Single `index.html` with inline `<style>` and a `<script>` block. No frameworks,
 **State:**
 - `appState` (in-memory JS object) — active tickets, current view, selected ticket, order counter
 - `localStorage['menu']` — menu catalog (persists across page refreshes)
+- `localStorage['menuIdCounter']` — monotonically incrementing integer for menu item IDs (persists across page refreshes, prevents duplicate IDs on rapid add)
 
 The order number counter is in-memory only. It resets to `#001` on every page load. Order numbers are session-scoped and will repeat across sessions — this is intentional and acceptable for a simple counter display.
 
@@ -63,13 +64,16 @@ Each ticket has:
 ### Status transitions
 Staff can set status freely via a `<select>` dropdown on the **ticket card** (left panel). No enforced one-way progression.
 
-**Setting status to `Served` via the dropdown** locks the card immediately (no confirmation modal). The card becomes dimmed and non-clickable. This is distinct from pressing **Submit** in the order panel, which also marks the order Served but additionally shows the confirmation modal.
+**Setting status to `Served` via the dropdown** locks the card immediately (no confirmation modal). The card becomes dimmed and non-clickable. If the ticket being set to `Served` is currently open in the right panel, any unsaved changes are **silently discarded** and the panel clears — no confirm dialog is shown, because the staff member explicitly chose to mark the order Served.
 
-When a ticket is open in the right panel and its status is changed via the left-panel card dropdown, the panel re-renders to reflect the updated status. If the ticket is locked to `Served` via the dropdown while open in the panel, the panel clears.
+When a ticket is open in the right panel and its status is changed to a non-Served status via the left-panel card dropdown, the panel re-renders to reflect the updated status without losing any unsaved quantity changes.
 
 ### Dirty state definition
 - **New order panel:** dirty when at least one item's quantity is greater than 0.
 - **Editing an existing ticket:** dirty when any current quantity differs from the persisted ticket's quantities (including zeroing out all items).
+
+### Opening a ticket card when the panel is dirty
+If the panel is dirty and the user clicks a different (non-Served) ticket card, the same `confirm()` dialog is shown: "You have an unsaved order. Discard it and start a new one?" If confirmed, the new ticket opens in the panel. If cancelled, nothing changes.
 
 ### Orders tab layout (side by side)
 - **Left — Ticket list:** Cards for all active orders. Each card shows order #, total, item count, and status badge. Color-coded by status using CSS classes:
@@ -77,10 +81,10 @@ When a ticket is open in the right panel and its status is changed via the left-
   - `Preparing` → `.status-preparing` (amber)
   - `Ready` → `.status-ready` (green)
   - `Served` → `.status-served` (dimmed/muted, visually de-emphasized)
-- Clicking a card opens it in the order panel.
+- Clicking a card opens it in the order panel (with dirty-state guard — see above).
 - Served ticket cards are **not clickable** — they are display-only in the list.
 - A **"+ New Order"** button creates a fresh ticket and opens it in the panel.
-  - If the panel is dirty (see dirty state definition above), clicking "+ New Order" shows a native `confirm()` dialog: "You have an unsaved order. Discard it and start a new one?" If confirmed, the current panel is cleared. If cancelled, nothing changes.
+  - If the panel is dirty, shows the same `confirm()` dialog as above.
 
 - **Right — Order panel:** Staff build or edit the active order.
   - Menu items are displayed grouped by category (Drinks, then Food).
@@ -92,7 +96,7 @@ When a ticket is open in the right panel and its status is changed via the left-
   - Actions:
     - **Save** — validates that at least one item has quantity > 0 (shows inline error "Add at least one item" if not); on success, creates or updates the ticket, resets its status to `Pending`, and clears the panel to a blank state
     - **Submit** — same validation as Save; on success, saves the ticket, marks it `Served`, shows the confirmation modal, then clears the panel
-    - **Cancel** — if editing an existing ticket, reverts all quantities to the ticket's persisted values (even if the ticket has no saved line items) and clears the panel. If the panel holds a new unsaved order, clears the panel to a blank state with no confirmation dialog.
+    - **Cancel** — discards all unsaved changes and closes the panel to a blank state. No confirm dialog. Works the same whether the panel holds a new order or an existing ticket being edited.
 
 ### Save behavior and status
 Save always resets the ticket's status to `Pending`. This is intentional: if a `Ready` ticket is re-opened and modified, it is no longer ready to serve.
@@ -112,7 +116,7 @@ Manages the menu catalog stored in `localStorage`.
 ### Menu item schema
 ```json
 {
-  "id": 1711084800000,
+  "id": 12,
   "name": "Caramel Macchiato",
   "price": 85,
   "category": "Drinks",
@@ -120,7 +124,7 @@ Manages the menu catalog stored in `localStorage`.
 }
 ```
 
-`id` is a `Date.now()` timestamp assigned at creation time.
+`id` is a monotonically incrementing integer from `localStorage['menuIdCounter']`. On add, read the current counter, increment it, save it back, and assign the pre-increment value as the new item's id. This prevents duplicate IDs on rapid sequential adds.
 
 ### Categories
 Fixed two categories: **Drinks** and **Food**. All form fields that accept a category use a `<select>` with exactly these two options.
@@ -130,11 +134,11 @@ Fixed two categories: **Drinks** and **Food**. All form fields that accept a cat
 - **Menu table** below, grouped by category. Columns: Name, Price, Available, Actions.
   - Available column in read-only mode displays "Yes" or "No".
 - **Actions per row:**
-  - **Edit** — row fields become inline editable inputs with the same validation rules as the Add Item form (Name required, max 50 characters; Price min 1). Two buttons appear on the row: **Save** (validates and commits to `localStorage`) and **Cancel** (restores the previous values). Only one row can be in edit mode at a time.
+  - **Edit** — row fields become inline editable inputs with the same validation rules as the Add Item form (Name required, max 50 characters; Price min 1). Two buttons appear on the row: **Save** (validates and commits to `localStorage`) and **Cancel** (restores the previous values). Only one row can be in edit mode at a time. If a row is already in edit mode and the user clicks Edit on a different row, the first row **auto-cancels** (unsaved edits are silently discarded) and the new row enters edit mode.
   - **Delete** — shows a native `confirm()` dialog: "Delete [item name]?" If confirmed, removes from catalog and updates `localStorage`.
 
 ### Default menu seeding
-On page load, if `localStorage['menu']` is absent (key does not exist), seed the default menu. If the key exists (even as an empty array — meaning staff deleted all items intentionally), do **not** re-seed.
+On page load, if `localStorage['menu']` is absent (key does not exist), seed the default menu and initialize `localStorage['menuIdCounter']` to the count of seeded items. If the key exists (even as an empty array — meaning staff deleted all items intentionally), do **not** re-seed.
 
 **Default items:**
 - **Drinks:** Black Coffee (₱60), Latte (₱85), Caramel Macchiato (₱95), Iced Tea (₱50), Fruit Soda (₱55)
