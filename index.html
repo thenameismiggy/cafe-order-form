@@ -203,7 +203,88 @@
   </div>
 
   <script>
-    // JS goes here — added in subsequent tasks
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const appState = {
+  tickets: [],          // array of ticket objects
+  nextOrderNum: 1,      // resets each page load
+  panelTicketId: null,  // id of ticket currently open in panel (null = new order)
+  panelQtys: {},        // { itemId: quantity } — current panel quantities (unsaved)
+  panelOpen: false,     // is the panel showing an order form?
+};
+
+// ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
+function getMenu() {
+  return JSON.parse(localStorage.getItem('menu') || 'null');
+}
+function saveMenu(menu) {
+  localStorage.setItem('menu', JSON.stringify(menu));
+}
+function getIdCounter() {
+  return parseInt(localStorage.getItem('menuIdCounter') || '0', 10);
+}
+function saveIdCounter(n) {
+  localStorage.setItem('menuIdCounter', String(n));
+}
+function nextMenuId() {
+  const id = getIdCounter();
+  saveIdCounter(id + 1);
+  return id;
+}
+
+// ─── DEFAULT MENU ─────────────────────────────────────────────────────────────
+const DEFAULT_MENU = [
+  { name: 'Black Coffee',      price: 60,  category: 'Drinks', available: true },
+  { name: 'Latte',             price: 85,  category: 'Drinks', available: true },
+  { name: 'Caramel Macchiato', price: 95,  category: 'Drinks', available: true },
+  { name: 'Iced Tea',          price: 50,  category: 'Drinks', available: true },
+  { name: 'Fruit Soda',        price: 55,  category: 'Drinks', available: true },
+  { name: 'French Fries',      price: 40,  category: 'Food',   available: true },
+  { name: 'Fish Balls',        price: 25,  category: 'Food',   available: true },
+  { name: 'Kwek-Kwek',         price: 25,  category: 'Food',   available: true },
+  { name: 'Kikiam',            price: 30,  category: 'Food',   available: true },
+  { name: 'Cheese Sticks',     price: 45,  category: 'Food',   available: true },
+];
+
+function seedMenuIfNeeded() {
+  if (localStorage.getItem('menu') === null) {
+    saveIdCounter(DEFAULT_MENU.length);
+    const menu = DEFAULT_MENU.map((item, i) => ({ id: i, ...item }));
+    saveMenu(menu);
+  }
+}
+
+// ─── FORMATTING ───────────────────────────────────────────────────────────────
+function formatPrice(n) {
+  return '₱' + Math.round(n);
+}
+
+// ─── TAB SWITCHING ────────────────────────────────────────────────────────────
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // orders tab uses flex layout, others use block
+      const ordersTab = document.getElementById('orders-tab');
+      const adminTab  = document.getElementById('admin-tab');
+      if (tabId === 'orders-tab') {
+        ordersTab.classList.add('active');
+        adminTab.classList.remove('active');
+        adminTab.style.display = 'none';
+      } else {
+        ordersTab.classList.remove('active');
+        adminTab.classList.remove('active'); // reset
+        adminTab.style.display = 'block';
+        renderMenuTable();
+      }
+    });
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+seedMenuIfNeeded();
+initTabs();
   </script>
 </body>
 </html>
