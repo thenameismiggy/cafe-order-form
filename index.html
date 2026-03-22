@@ -422,9 +422,115 @@ document.getElementById('add-item-form').addEventListener('submit', function(e) 
   renderMenuTable();
 });
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// ─── ORDER PANEL ──────────────────────────────────────────────────────────────
+function computeTotal(qtys) {
+  const menu = getMenu() || [];
+  return menu.reduce((sum, item) => sum + (qtys[item.id] || 0) * item.price, 0);
+}
+
+function isDirty() {
+  if (!appState.panelOpen) return false;
+  if (appState.panelTicketId === null) {
+    // new order: dirty if any qty > 0
+    return Object.values(appState.panelQtys).some(q => q > 0);
+  } else {
+    // editing existing: dirty if any qty differs from saved
+    const ticket = appState.tickets.find(t => t.id === appState.panelTicketId);
+    if (!ticket) return false;
+    const menu = getMenu() || [];
+    return menu.some(item => (appState.panelQtys[item.id] || 0) !== (ticket.lineItems.find(l => l.itemId === item.id)?.quantity || 0));
+  }
+}
+
+function renderOrderPanel() {
+  const panelEl = document.getElementById('order-panel');
+  if (!appState.panelOpen) {
+    panelEl.innerHTML = '<p class="panel-empty">Select an order or start a new one.</p>';
+    return;
+  }
+
+  const menu = getMenu() || [];
+  const availableItems = menu.filter(i => i.available);
+  const isEdit = appState.panelTicketId !== null;
+  const ticket = isEdit ? appState.tickets.find(t => t.id === appState.panelTicketId) : null;
+  const title = isEdit ? `Editing ${ticket.orderNum}` : 'New Order';
+  const total = computeTotal(appState.panelQtys);
+
+  if (availableItems.length === 0) {
+    panelEl.innerHTML = `
+      <div class="panel-form">
+        <p style="color:#888;text-align:center;padding:2rem 0;">No items available. Add items in the Admin tab.</p>
+      </div>`;
+    return;
+  }
+
+  const categories = ['Drinks', 'Food'];
+  const categorySections = categories.map(cat => {
+    const items = availableItems.filter(i => i.category === cat);
+    if (items.length === 0) return '';
+    return `
+      <div class="menu-category">
+        <h3>${cat}</h3>
+        ${items.map(item => {
+          const qty = appState.panelQtys[item.id] || 0;
+          return `
+            <div class="menu-item-row">
+              <div class="item-info">
+                <span class="item-name">${escHtml(item.name)}</span>
+                <span class="item-price">${formatPrice(item.price)}</span>
+              </div>
+              <div class="stepper">
+                <button class="stepper-minus" data-item-id="${item.id}" ${qty === 0 ? 'disabled' : ''} aria-label="Decrease">−</button>
+                <span class="qty">${qty}</span>
+                <button class="stepper-plus" data-item-id="${item.id}" aria-label="Increase">+</button>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }).join('');
+
+  panelEl.innerHTML = `
+    <div class="panel-form">
+      <h2>${title}</h2>
+      ${categorySections}
+      <div class="panel-total">
+        <span>Total</span>
+        <span>${formatPrice(total)}</span>
+      </div>
+      <p class="panel-error" id="panel-error"></p>
+      <div class="panel-actions">
+        <button class="btn btn-primary" id="btn-save">Save</button>
+        <button class="btn btn-success" id="btn-submit">Submit</button>
+        <button class="btn btn-ghost"   id="btn-cancel">Cancel</button>
+      </div>
+    </div>`;
+
+  // Stepper event listeners
+  panelEl.querySelectorAll('.stepper-plus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.itemId, 10);
+      appState.panelQtys[id] = (appState.panelQtys[id] || 0) + 1;
+      renderOrderPanel();
+    });
+  });
+  panelEl.querySelectorAll('.stepper-minus').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.itemId, 10);
+      if ((appState.panelQtys[id] || 0) > 0) {
+        appState.panelQtys[id]--;
+        renderOrderPanel();
+      }
+    });
+  });
+}
+
+function renderTicketCards() { /* stub — implemented in Task 6 */ }
+
+// ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 seedMenuIfNeeded();
 initTabs();
+renderOrderPanel();
+renderTicketCards();
   </script>
 </body>
 </html>
