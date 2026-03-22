@@ -620,7 +620,8 @@ function updateTicketStatus(id, status) {
 
 // ─── REPORT TAB ───────────────────────────────────────────────────────────────
 function renderReportTab() {
-  // Only render if report tab is active to avoid unnecessary DOM work
+  // Guard: called from state mutations (updateTicketStatus, handleSave, handleSubmit) —
+  // skip the render if the report tab is not currently visible.
   const reportPanel = document.getElementById('report-tab');
   if (!reportPanel.classList.contains('active')) return;
 
@@ -635,7 +636,7 @@ function renderReportTab() {
 
   // ── Summary cards ──────────────────────────────────────────────────────────
   function sumByStatus(status) {
-    return appState.tickets
+    return tickets
       .filter(t => t.status === status)
       .reduce((s, t) => s + t.total, 0);
   }
