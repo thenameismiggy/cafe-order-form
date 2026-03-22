@@ -840,7 +840,7 @@ document.getElementById('order-panel').addEventListener('click', e => {
   if (btn.id === 'btn-save')        handleSave();
   if (btn.id === 'btn-submit')      handleSubmit();
   if (btn.id === 'btn-cancel')      handleCancel();
-  if (btn.id === 'btn-back-mobile') document.getElementById('orders-tab').classList.remove('panel-open');
+  if (btn.id === 'btn-back-mobile') document.getElementById('orders-tab').classList.remove('panel-open'); // view-switch only — preserves panel state (not a cancel)
 });
 
 function validatePanel() {
