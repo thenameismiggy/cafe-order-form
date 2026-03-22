@@ -521,6 +521,7 @@ function renderOrderPanel() {
   if (availableItems.length === 0) {
     panelEl.innerHTML = `
       <div class="panel-form">
+        <button id="btn-back-mobile" class="btn btn-ghost btn-sm">← Orders</button>
         <p style="color:#888;text-align:center;padding:2rem 0;">No items available. Add items in the Admin tab.</p>
       </div>`;
     return;
@@ -553,6 +554,7 @@ function renderOrderPanel() {
 
   panelEl.innerHTML = `
     <div class="panel-form">
+      <button id="btn-back-mobile" class="btn btn-ghost btn-sm">← Orders</button>
       <h2>${title}</h2>
       ${categorySections}
       <div class="panel-total">
@@ -804,6 +806,7 @@ function openTicketInPanel(id) {
   ticket.lineItems.forEach(l => { appState.panelQtys[l.itemId] = l.quantity; });
   appState.panelTicketId = id;
   appState.panelOpen = true;
+  document.getElementById('orders-tab').classList.add('panel-open');
   renderOrderPanel();
   renderTicketCards();
 }
@@ -812,6 +815,7 @@ function closePanel() {
   appState.panelOpen = false;
   appState.panelTicketId = null;
   appState.panelQtys = {};
+  document.getElementById('orders-tab').classList.remove('panel-open');
   renderOrderPanel();
 }
 
@@ -823,6 +827,7 @@ document.getElementById('btn-new-order').addEventListener('click', () => {
   appState.panelTicketId = null;
   appState.panelQtys = {};
   appState.panelOpen = true;
+  document.getElementById('orders-tab').classList.add('panel-open');
   renderOrderPanel();
   renderTicketCards();
 });
@@ -832,9 +837,10 @@ document.getElementById('btn-new-order').addEventListener('click', () => {
 document.getElementById('order-panel').addEventListener('click', e => {
   const btn = e.target.closest('button[id]');
   if (!btn) return;
-  if (btn.id === 'btn-save')   handleSave();
-  if (btn.id === 'btn-submit') handleSubmit();
-  if (btn.id === 'btn-cancel') handleCancel();
+  if (btn.id === 'btn-save')        handleSave();
+  if (btn.id === 'btn-submit')      handleSubmit();
+  if (btn.id === 'btn-cancel')      handleCancel();
+  if (btn.id === 'btn-back-mobile') document.getElementById('orders-tab').classList.remove('panel-open');
 });
 
 function validatePanel() {
