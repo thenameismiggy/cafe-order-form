@@ -295,18 +295,35 @@ function getMenu() {
   return JSON.parse(localStorage.getItem('menu') || 'null');
 }
 function saveMenu(menu) {
-  localStorage.setItem('menu', JSON.stringify(menu));
+  try {
+    localStorage.setItem('menu', JSON.stringify(menu));
+  } catch (e) {
+    showStorageError();
+  }
 }
 function getIdCounter() {
   return parseInt(localStorage.getItem('menuIdCounter') || '0', 10);
 }
 function saveIdCounter(n) {
-  localStorage.setItem('menuIdCounter', String(n));
+  try {
+    localStorage.setItem('menuIdCounter', String(n));
+  } catch (e) {
+    showStorageError();
+  }
 }
 function nextMenuId() {
   const id = getIdCounter();
   saveIdCounter(id + 1);
   return id;
+}
+
+function showStorageError() {
+  if (document.getElementById('storage-error-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'storage-error-banner';
+  banner.style.cssText = 'background:#dc2626;color:#fff;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;';
+  banner.innerHTML = '<span>Storage error: your changes could not be saved. Please contact your developer.</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;">×</button>';
+  document.body.insertBefore(banner, document.body.firstChild);
 }
 
 // ─── DEFAULT MENU ─────────────────────────────────────────────────────────────
@@ -560,7 +577,7 @@ function renderOrderPanel() {
               <div class="stepper">
                 <button class="stepper-minus" data-item-id="${item.id}" ${qty === 0 ? 'disabled' : ''} aria-label="Decrease">−</button>
                 <span class="qty">${qty}</span>
-                <button class="stepper-plus" data-item-id="${item.id}" aria-label="Increase">+</button>
+                <button class="stepper-plus" data-item-id="${item.id}" ${qty >= 10 ? 'disabled' : ''} aria-label="Increase">+</button>
               </div>
             </div>`;
         }).join('')}
@@ -588,6 +605,7 @@ function renderOrderPanel() {
   panelEl.querySelectorAll('.stepper-plus').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.itemId, 10);
+      if ((appState.panelQtys[id] || 0) >= 10) return;
       appState.panelQtys[id] = (appState.panelQtys[id] || 0) + 1;
       renderOrderPanel();
     });
