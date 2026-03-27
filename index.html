@@ -107,6 +107,20 @@
     td input[type="number"] { width: 70px; }
     .td-actions { display: flex; gap: 0.4rem; }
 
+    /* === CATEGORY MANAGEMENT === */
+    .category-mgmt { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .category-mgmt h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+    .category-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.85rem; }
+    .category-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #f5f5f5; }
+    .category-row:last-child { border-bottom: none; }
+    .cat-name { flex: 1; font-size: 0.9rem; cursor: pointer; padding: 0.2rem 0.3rem; border-radius: 3px; }
+    .cat-name:hover { background: #f5f5f5; }
+    .cat-edit-input { flex: 1; padding: 0.25rem 0.4rem; border: 1px solid #bbb; border-radius: 4px; font-size: 0.88rem; }
+    .cat-row-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+    .cat-add-row { display: flex; gap: 0.5rem; align-items: center; }
+    .cat-add-row input { padding: 0.45rem 0.65rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88rem; flex: 1; }
+    .cat-add-row input:focus { outline: 2px solid #1a1a2e; border-color: transparent; }
+
     /* === CONFIRMATION MODAL === */
     #confirmation-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
     #confirmation-modal.open { display: flex; }
@@ -211,6 +225,8 @@
   <!-- ADMIN TAB -->
   <div id="admin-tab" class="tab-panel">
     <h2>Menu Management</h2>
+
+    <div id="category-management"><!-- rendered by JS --></div>
 
     <div class="add-item-form">
       <h3>Add New Item</h3>
