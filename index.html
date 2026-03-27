@@ -293,6 +293,7 @@ const appState = {
   panelQtys: {},        // { itemId: quantity } — current panel quantities (unsaved)
   panelOpen: false,     // is the panel showing an order form?
   editingRowId: null,   // id of menu item currently being inline-edited
+  editingCategoryIndex: null,
 };
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
@@ -386,6 +387,185 @@ function initTabs() {
   });
 }
 
+// ─── ADMIN: CATEGORY MANAGEMENT ──────────────────────────────────────────────
+function renderCategorySection() {
+  const cats = getCategories();
+  const container = document.getElementById('category-management');
+
+  const rowsHtml = cats.map((cat, i) => {
+    const isEditing = appState.editingCategoryIndex === i;
+    const upDisabled   = i === 0             ? 'disabled' : '';
+    const downDisabled = i === cats.length - 1 ? 'disabled' : '';
+    const delDisabled  = cats.length === 1   ? 'disabled' : '';
+    const nameCell = isEditing
+      ? `<input type="text" class="cat-edit-input" value="${escHtml(cat)}" data-original="${escHtml(cat)}" data-index="${i}">`
+      : `<span class="cat-name" data-cat-action="start-edit" data-index="${i}">${escHtml(cat)}</span>`;
+    return `
+      <div class="category-row" data-index="${i}">
+        ${nameCell}
+        <div class="cat-row-actions">
+          <button class="btn btn-sm btn-ghost" data-cat-action="up"     data-index="${i}" ${upDisabled}>↑</button>
+          <button class="btn btn-sm btn-ghost" data-cat-action="down"   data-index="${i}" ${downDisabled}>↓</button>
+          <button class="btn btn-sm btn-danger" data-cat-action="delete" data-index="${i}" ${delDisabled}>Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="category-mgmt">
+      <h3>Categories</h3>
+      <div class="category-list">${rowsHtml}</div>
+      <div class="cat-add-row">
+        <input type="text" id="new-category-name" placeholder="Category name" maxlength="50">
+        <button class="btn btn-sm btn-primary" id="btn-add-category">Add Category</button>
+      </div>
+      <p id="cat-error" class="form-error"></p>
+    </div>`;
+
+  // Delegation on category list for click actions
+  container.querySelector('.category-list').addEventListener('click', e => {
+    const el = e.target.closest('[data-cat-action]');
+    if (!el) return;
+    const action = el.dataset.catAction;
+    const idx    = parseInt(el.dataset.index, 10);
+    if (action === 'start-edit') {
+      appState.editingCategoryIndex = idx;
+      renderCategorySection();
+    } else if (action === 'up') {
+      moveCategoryUp(idx);
+    } else if (action === 'down') {
+      moveCategoryDown(idx);
+    } else if (action === 'delete') {
+      deleteCategoryAt(idx);
+    }
+  });
+
+  // Inline edit input events
+  const editInput = container.querySelector('.cat-edit-input');
+  if (editInput) {
+    editInput.focus();
+    editInput.select();
+    editInput.addEventListener('blur',    () => commitCategoryRename(editInput));
+    editInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') editInput.blur();
+      if (e.key === 'Escape') {
+        appState.editingCategoryIndex = null;
+        renderCategorySection();
+      }
+    });
+  }
+
+  // Add category input/button events
+  document.getElementById('new-category-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAddCategory();
+  });
+  document.getElementById('btn-add-category').addEventListener('click', handleAddCategory);
+}
+
+function moveCategoryUp(idx) {
+  const cats = getCategories();
+  if (idx === 0) return;
+  [cats[idx - 1], cats[idx]] = [cats[idx], cats[idx - 1]];
+  saveCategories(cats);
+  renderCategorySection();
+}
+
+function moveCategoryDown(idx) {
+  const cats = getCategories();
+  if (idx === cats.length - 1) return;
+  [cats[idx], cats[idx + 1]] = [cats[idx + 1], cats[idx]];
+  saveCategories(cats);
+  renderCategorySection();
+}
+
+function commitCategoryRename(input) {
+  const idx          = parseInt(input.dataset.index, 10);
+  const originalName = input.dataset.original;
+  const newName      = input.value.trim();
+
+  appState.editingCategoryIndex = null;
+
+  // No change
+  if (newName === originalName) {
+    renderCategorySection();
+    return;
+  }
+
+  // Validation
+  const cats = getCategories();
+  if (!newName) {
+    renderCategorySection();
+    return;
+  }
+  const duplicate = cats.some((c, i) => i !== idx && c.toLowerCase() === newName.toLowerCase());
+  if (duplicate) {
+    renderCategorySection();
+    return;
+  }
+
+  // Update menu items that reference the old name
+  const menu = getMenu() || [];
+  menu.forEach(item => {
+    if (item.category === originalName) item.category = newName;
+  });
+  saveMenu(menu);
+
+  // Update categories
+  cats[idx] = newName;
+  saveCategories(cats);
+
+  renderCategorySection();
+  renderMenuTable();
+  renderOrderPanel();
+}
+
+function deleteCategoryAt(idx) {
+  const cats = getCategories();
+  if (cats.length === 1) return; // guard: never delete last category
+
+  const catName  = cats[idx];
+  const menu     = getMenu() || [];
+  const affected = menu.filter(i => i.category === catName).length;
+
+  if (affected > 0) {
+    const ok = confirm(
+      `This category has ${affected} item(s). They will not appear in the order panel until reassigned to another category. Delete anyway?`
+    );
+    if (!ok) return;
+  }
+
+  cats.splice(idx, 1);
+  saveCategories(cats);
+  renderCategorySection();
+  renderMenuTable();
+  renderOrderPanel();
+}
+
+function handleAddCategory() {
+  const input   = document.getElementById('new-category-name');
+  const errorEl = document.getElementById('cat-error');
+  const name    = input.value.trim();
+
+  errorEl.textContent = '';
+
+  if (!name) {
+    errorEl.textContent = 'Category name is required.';
+    return;
+  }
+
+  const cats = getCategories();
+  if (cats.some(c => c.toLowerCase() === name.toLowerCase())) {
+    errorEl.textContent = 'A category with that name already exists.';
+    return;
+  }
+
+  cats.push(name);
+  saveCategories(cats);
+  input.value = '';
+  renderCategorySection();
+  renderMenuTable(); // update the add-item category select
+}
+
 // ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
 function renderMenuTable() {
   const menu = getMenu() || [];
@@ -395,6 +575,8 @@ function renderMenuTable() {
   const catSel = document.getElementById('new-category');
   const categories = getCategories();
   catSel.innerHTML = categories.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
+
+  renderCategorySection();
 
   if (menu.length === 0) {
     container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
