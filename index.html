@@ -285,13 +285,21 @@ function getMenu() {
   return JSON.parse(localStorage.getItem('menu') || 'null');
 }
 function saveMenu(menu) {
-  localStorage.setItem('menu', JSON.stringify(menu));
+  try {
+    localStorage.setItem('menu', JSON.stringify(menu));
+  } catch (e) {
+    showStorageError();
+  }
 }
 function getIdCounter() {
   return parseInt(localStorage.getItem('menuIdCounter') || '0', 10);
 }
 function saveIdCounter(n) {
-  localStorage.setItem('menuIdCounter', String(n));
+  try {
+    localStorage.setItem('menuIdCounter', String(n));
+  } catch (e) {
+    showStorageError();
+  }
 }
 function nextMenuId() {
   const id = getIdCounter();
