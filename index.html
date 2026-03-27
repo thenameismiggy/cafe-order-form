@@ -415,6 +415,8 @@ function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// Dead code — superseded by #menu-table delegation listener. Uses e.currentTarget,
+// which would not be the button in a delegated context — do not re-attach directly.
 function handleMenuAction(e) {
   const action = e.currentTarget.dataset.action;
   const id = parseInt(e.currentTarget.dataset.id, 10);
