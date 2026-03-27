@@ -278,6 +278,7 @@ const appState = {
   panelTicketId: null,  // id of ticket currently open in panel (null = new order)
   panelQtys: {},        // { itemId: quantity } — current panel quantities (unsaved)
   panelOpen: false,     // is the panel showing an order form?
+  editingRowId: null,   // id of menu item currently being inline-edited
 };
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
@@ -347,8 +348,6 @@ function initTabs() {
 }
 
 // ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
-let editingRowId = null; // id of menu item currently being inline-edited
-
 function renderMenuTable() {
   const menu = getMenu() || [];
   const container = document.getElementById('menu-table');
@@ -381,7 +380,7 @@ function renderMenuTable() {
 }
 
 function renderMenuRow(item) {
-  if (editingRowId === item.id) {
+  if (appState.editingRowId === item.id) {
     return `
       <tr data-id="${item.id}">
         <td><input type="text" class="edit-name" value="${escHtml(item.name)}" maxlength="50" required></td>
@@ -425,12 +424,12 @@ function handleMenuAction(e) {
 }
 
 function startEditRow(id) {
-  editingRowId = id;
+  appState.editingRowId = id;
   renderMenuTable();
 }
 
 function cancelEditRow() {
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
 
@@ -450,7 +449,7 @@ function saveEditRow(id) {
   if (idx === -1) return;
   menu[idx] = { id, name, price, category, available };
   saveMenu(menu);
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
 
@@ -461,7 +460,7 @@ function deleteMenuItem(id) {
   if (!item) return;
   if (!confirm(`Delete "${item.name}"?`)) return;
   saveMenu(menu.filter(i => i.id !== id));
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
 
