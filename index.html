@@ -585,7 +585,7 @@ function renderMenuTable() {
     if (items.length === 0) return '';
     return `
       <div class="menu-table-category">
-        <div class="menu-table-category-header">${cat}</div>
+        <div class="menu-table-category-header">${escHtml(cat)}</div>
         <table>
           <thead><tr><th>Name</th><th>Price</th><th>Available</th><th>Actions</th></tr></thead>
           <tbody>
@@ -767,7 +767,7 @@ function renderOrderPanel() {
     if (items.length === 0) return '';
     return `
       <div class="menu-category">
-        <h3>${cat}</h3>
+        <h3>${escHtml(cat)}</h3>
         ${items.map(item => {
           const qty = appState.panelQtys[item.id] || 0;
           return `
