@@ -514,7 +514,6 @@ function commitCategoryRename(input) {
   cats[idx] = newName;
   saveCategories(cats);
 
-  renderCategorySection();
   renderMenuTable();
   renderOrderPanel();
 }
@@ -536,7 +535,6 @@ function deleteCategoryAt(idx) {
 
   cats.splice(idx, 1);
   saveCategories(cats);
-  renderCategorySection();
   renderMenuTable();
   renderOrderPanel();
 }
@@ -562,8 +560,7 @@ function handleAddCategory() {
   cats.push(name);
   saveCategories(cats);
   input.value = '';
-  renderCategorySection();
-  renderMenuTable(); // update the add-item category select
+  renderMenuTable(); // update the add-item category select and category section
 }
 
 // ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
