@@ -227,8 +227,6 @@
           <div class="form-group">
             <label for="new-category">Category</label>
             <select id="new-category">
-              <option value="Drinks">Drinks</option>
-              <option value="Food">Food</option>
             </select>
           </div>
           <div class="form-group checkbox-group">
@@ -376,7 +374,13 @@ function initTabs() {
 function renderMenuTable() {
   const menu = getMenu() || [];
   const container = document.getElementById('menu-table');
-  const categories = ['Drinks', 'Food'];
+
+  // Populate the Add Item category select from live categories
+  const catSel = document.getElementById('new-category');
+  const liveCats = getCategories();
+  catSel.innerHTML = liveCats.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
+
+  const categories = getCategories();
 
   if (menu.length === 0) {
     container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
@@ -407,8 +411,7 @@ function renderMenuRow(item) {
         <td><input type="number" class="edit-price" value="${item.price}" min="1" step="1" required></td>
         <td>
           <select class="edit-category">
-            <option value="Drinks" ${item.category === 'Drinks' ? 'selected' : ''}>Drinks</option>
-            <option value="Food"   ${item.category === 'Food'   ? 'selected' : ''}>Food</option>
+            ${getCategories().map(cat => `<option value="${escHtml(cat)}" ${item.category === cat ? 'selected' : ''}>${escHtml(cat)}</option>`).join('')}
           </select>
           <input type="checkbox" class="edit-available" ${item.available ? 'checked' : ''} title="Available">
         </td>
@@ -565,7 +568,7 @@ function renderOrderPanel() {
     return;
   }
 
-  const categories = ['Drinks', 'Food'];
+  const categories = getCategories();
   const categorySections = categories.map(cat => {
     const items = availableItems.filter(i => i.category === cat);
     if (items.length === 0) return '';
@@ -751,7 +754,7 @@ function renderReportTab() {
     return entry.qty === 0 ? '—' : `${entry.qty} — ${formatPrice(entry.sub)}`;
   }
 
-  const categories = ['Drinks', 'Food'];
+  const categories = getCategories();
   let tableBody = '';
   categories.forEach(cat => {
     const items = Object.values(itemMap).filter(i => i.category === cat);
