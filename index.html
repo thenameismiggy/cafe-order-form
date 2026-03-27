@@ -377,10 +377,8 @@ function renderMenuTable() {
 
   // Populate the Add Item category select from live categories
   const catSel = document.getElementById('new-category');
-  const liveCats = getCategories();
-  catSel.innerHTML = liveCats.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
-
   const categories = getCategories();
+  catSel.innerHTML = categories.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
 
   if (menu.length === 0) {
     container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
