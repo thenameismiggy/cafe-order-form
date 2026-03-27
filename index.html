@@ -306,6 +306,25 @@ function nextMenuId() {
   return id;
 }
 
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
+function getCategories() {
+  try {
+    const raw = localStorage.getItem('categories');
+    if (raw === null) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+function saveCategories(arr) {
+  localStorage.setItem('categories', JSON.stringify(arr));
+}
+function seedCategoriesIfNeeded() {
+  if (localStorage.getItem('categories') === null) {
+    saveCategories(['Drinks', 'Food']);
+  }
+}
+
 // ─── DEFAULT MENU ─────────────────────────────────────────────────────────────
 const DEFAULT_MENU = [
   { name: 'Black Coffee',      price: 60,  category: 'Drinks', available: true },
@@ -990,6 +1009,7 @@ document.addEventListener('keydown', e => {
 
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 seedMenuIfNeeded();
+seedCategoriesIfNeeded();
 initTabs();
 renderOrderPanel();
 renderTicketCards();
