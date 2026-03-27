@@ -550,7 +550,7 @@ function renderOrderPanel() {
               <div class="stepper">
                 <button class="stepper-minus" data-item-id="${item.id}" ${qty === 0 ? 'disabled' : ''} aria-label="Decrease">−</button>
                 <span class="qty">${qty}</span>
-                <button class="stepper-plus" data-item-id="${item.id}" aria-label="Increase">+</button>
+                <button class="stepper-plus" data-item-id="${item.id}" ${qty >= 10 ? 'disabled' : ''} aria-label="Increase">+</button>
               </div>
             </div>`;
         }).join('')}
