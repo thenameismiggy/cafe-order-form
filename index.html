@@ -378,11 +378,6 @@ function renderMenuTable() {
         </table>
       </div>`;
   }).join('');
-
-  // re-attach edit/delete handlers
-  container.querySelectorAll('[data-action]').forEach(el => {
-    el.addEventListener('click', handleMenuAction);
-  });
 }
 
 function renderMenuRow(item) {
@@ -469,6 +464,18 @@ function deleteMenuItem(id) {
   appState.editingRowId = null;
   renderMenuTable();
 }
+
+// ─── MENU TABLE DELEGATION ───────────────────────────────────────────────────
+document.getElementById('menu-table').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = parseInt(btn.dataset.id, 10);
+  if (action === 'edit')             startEditRow(id);
+  else if (action === 'cancel-edit') cancelEditRow();
+  else if (action === 'save-edit')   saveEditRow(id);
+  else if (action === 'delete')      deleteMenuItem(id);
+});
 
 // ─── ADMIN: ADD ITEM FORM ─────────────────────────────────────────────────────
 document.getElementById('add-item-form').addEventListener('submit', function(e) {
