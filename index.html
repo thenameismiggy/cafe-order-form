@@ -578,6 +578,7 @@ function renderOrderPanel() {
   panelEl.querySelectorAll('.stepper-plus').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = parseInt(btn.dataset.itemId, 10);
+      if ((appState.panelQtys[id] || 0) >= 10) return;
       appState.panelQtys[id] = (appState.panelQtys[id] || 0) + 1;
       renderOrderPanel();
     });
