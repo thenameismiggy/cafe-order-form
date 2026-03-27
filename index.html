@@ -626,25 +626,6 @@ function renderTicketCards() {
       </div>`;
   }).join('');
 
-  // Card click → open in panel
-  container.querySelectorAll('.ticket-card:not(.served)').forEach(card => {
-    card.addEventListener('click', e => {
-      // Don't fire if clicking the dropdown itself
-      if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
-      const id = parseInt(card.dataset.ticketId, 10);
-      openTicketInPanel(id);
-    });
-  });
-
-  // Status dropdown change
-  container.querySelectorAll('.status-select').forEach(sel => {
-    sel.addEventListener('change', e => {
-      e.stopPropagation();
-      const id = parseInt(sel.dataset.ticketId, 10);
-      updateTicketStatus(id, sel.value);
-    });
-  });
-
   renderDraftBanner();
 }
 
@@ -844,6 +825,20 @@ function closePanel() {
   document.getElementById('orders-tab').classList.remove('panel-open');
   renderOrderPanel();
 }
+
+// ─── TICKET CARDS DELEGATION ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('ticket-cards').addEventListener('click', e => {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+  const card = e.target.closest('.ticket-card:not(.served)');
+  if (!card) return;
+  openTicketInPanel(parseInt(card.dataset.ticketId, 10));
+});
+
+document.getElementById('ticket-cards').addEventListener('change', e => {
+  const sel = e.target.closest('.status-select');
+  if (!sel) return;
+  updateTicketStatus(parseInt(sel.dataset.ticketId, 10), sel.value);
+});
 
 // ─── NEW ORDER BUTTON ─────────────────────────────────────────────────────────
 document.getElementById('btn-new-order').addEventListener('click', () => {
