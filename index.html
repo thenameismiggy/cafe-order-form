@@ -299,6 +299,15 @@ function nextMenuId() {
   return id;
 }
 
+function showStorageError() {
+  if (document.getElementById('storage-error-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'storage-error-banner';
+  banner.style.cssText = 'background:#dc2626;color:#fff;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;';
+  banner.innerHTML = '<span>Storage error: your changes could not be saved. Please contact your developer.</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;">×</button>';
+  document.body.insertBefore(banner, document.body.firstChild);
+}
+
 // ─── DEFAULT MENU ─────────────────────────────────────────────────────────────
 const DEFAULT_MENU = [
   { name: 'Black Coffee',      price: 60,  category: 'Drinks', available: true },
