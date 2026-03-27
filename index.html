@@ -117,6 +117,20 @@
     td input[type="number"] { width: 70px; }
     .td-actions { display: flex; gap: 0.4rem; }
 
+    /* === CATEGORY MANAGEMENT === */
+    .category-mgmt { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .category-mgmt h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+    .category-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.85rem; }
+    .category-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #f5f5f5; }
+    .category-row:last-child { border-bottom: none; }
+    .cat-name { flex: 1; font-size: 0.9rem; cursor: pointer; padding: 0.2rem 0.3rem; border-radius: 3px; }
+    .cat-name:hover { background: #f5f5f5; }
+    .cat-edit-input { flex: 1; padding: 0.25rem 0.4rem; border: 1px solid #bbb; border-radius: 4px; font-size: 0.88rem; }
+    .cat-row-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+    .cat-add-row { display: flex; gap: 0.5rem; align-items: center; }
+    .cat-add-row input { padding: 0.45rem 0.65rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88rem; flex: 1; }
+    .cat-add-row input:focus { outline: 2px solid #1a1a2e; border-color: transparent; }
+
     /* === CONFIRMATION MODAL === */
     #confirmation-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
     #confirmation-modal.open { display: flex; }
@@ -222,6 +236,8 @@
   <div id="admin-tab" class="tab-panel">
     <h2>Menu Management</h2>
 
+    <div id="category-management"><!-- rendered by JS --></div>
+
     <div class="add-item-form">
       <h3>Add New Item</h3>
       <form id="add-item-form" novalidate>
@@ -237,8 +253,6 @@
           <div class="form-group">
             <label for="new-category">Category</label>
             <select id="new-category">
-              <option value="Drinks">Drinks</option>
-              <option value="Food">Food</option>
             </select>
           </div>
           <div class="form-group checkbox-group">
@@ -288,13 +302,21 @@ const appState = {
   panelTicketId: null,  // id of ticket currently open in panel (null = new order)
   panelQtys: {},        // { itemId: quantity } — current panel quantities (unsaved)
   panelOpen: false,     // is the panel showing an order form?
+  editingRowId: null,   // id of menu item currently being inline-edited
+  editingCategoryIndex: null,
 };
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
+const _MENU_CACHE_EMPTY = Symbol('empty');
+let _menuCache = _MENU_CACHE_EMPTY;
+
 function getMenu() {
-  return JSON.parse(localStorage.getItem('menu') || 'null');
+  if (_menuCache !== _MENU_CACHE_EMPTY) return _menuCache;
+  _menuCache = JSON.parse(localStorage.getItem('menu') || 'null');
+  return _menuCache;
 }
 function saveMenu(menu) {
+  _menuCache = _MENU_CACHE_EMPTY;
   try {
     localStorage.setItem('menu', JSON.stringify(menu));
   } catch (e) {
@@ -365,6 +387,25 @@ function loadOrders() {
   }
 }
 
+// ─── CATEGORIES ───────────────────────────────────────────────────────────────
+function getCategories() {
+  try {
+    const raw = localStorage.getItem('categories');
+    if (raw === null) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+function saveCategories(arr) {
+  localStorage.setItem('categories', JSON.stringify(arr));
+}
+function seedCategoriesIfNeeded() {
+  if (localStorage.getItem('categories') === null) {
+    saveCategories(['Drinks', 'Food']);
+  }
+}
+
 
 // ─── DEFAULT MENU ─────────────────────────────────────────────────────────────
 const DEFAULT_MENU = [
@@ -413,13 +454,193 @@ function initTabs() {
   });
 }
 
-// ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
-let editingRowId = null; // id of menu item currently being inline-edited
+// ─── ADMIN: CATEGORY MANAGEMENT ──────────────────────────────────────────────
+function renderCategorySection() {
+  const cats = getCategories();
+  const container = document.getElementById('category-management');
 
+  const rowsHtml = cats.map((cat, i) => {
+    const isEditing = appState.editingCategoryIndex === i;
+    const upDisabled   = i === 0             ? 'disabled' : '';
+    const downDisabled = i === cats.length - 1 ? 'disabled' : '';
+    const delDisabled  = cats.length === 1   ? 'disabled' : '';
+    const nameCell = isEditing
+      ? `<input type="text" class="cat-edit-input" value="${escHtml(cat)}" data-original="${escHtml(cat)}" data-index="${i}">`
+      : `<span class="cat-name" data-cat-action="start-edit" data-index="${i}">${escHtml(cat)}</span>`;
+    return `
+      <div class="category-row" data-index="${i}">
+        ${nameCell}
+        <div class="cat-row-actions">
+          <button class="btn btn-sm btn-ghost" data-cat-action="up"     data-index="${i}" ${upDisabled}>↑</button>
+          <button class="btn btn-sm btn-ghost" data-cat-action="down"   data-index="${i}" ${downDisabled}>↓</button>
+          <button class="btn btn-sm btn-danger" data-cat-action="delete" data-index="${i}" ${delDisabled}>Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="category-mgmt">
+      <h3>Categories</h3>
+      <div class="category-list">${rowsHtml}</div>
+      <div class="cat-add-row">
+        <input type="text" id="new-category-name" placeholder="Category name" maxlength="50">
+        <button class="btn btn-sm btn-primary" id="btn-add-category">Add Category</button>
+      </div>
+      <p id="cat-error" class="form-error"></p>
+    </div>`;
+
+  // Delegation on category list for click actions
+  container.querySelector('.category-list').addEventListener('click', e => {
+    const el = e.target.closest('[data-cat-action]');
+    if (!el) return;
+    const action = el.dataset.catAction;
+    const idx    = parseInt(el.dataset.index, 10);
+    if (action === 'start-edit') {
+      appState.editingCategoryIndex = idx;
+      renderCategorySection();
+    } else if (action === 'up') {
+      moveCategoryUp(idx);
+    } else if (action === 'down') {
+      moveCategoryDown(idx);
+    } else if (action === 'delete') {
+      deleteCategoryAt(idx);
+    }
+  });
+
+  // Inline edit input events
+  const editInput = container.querySelector('.cat-edit-input');
+  if (editInput) {
+    editInput.focus();
+    editInput.select();
+    editInput.addEventListener('blur',    () => commitCategoryRename(editInput));
+    editInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') editInput.blur();
+      if (e.key === 'Escape') {
+        appState.editingCategoryIndex = null;
+        renderCategorySection();
+      }
+    });
+  }
+
+  // Add category input/button events
+  document.getElementById('new-category-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAddCategory();
+  });
+  document.getElementById('btn-add-category').addEventListener('click', handleAddCategory);
+}
+
+function moveCategoryUp(idx) {
+  const cats = getCategories();
+  if (idx === 0) return;
+  [cats[idx - 1], cats[idx]] = [cats[idx], cats[idx - 1]];
+  saveCategories(cats);
+  renderCategorySection();
+}
+
+function moveCategoryDown(idx) {
+  const cats = getCategories();
+  if (idx === cats.length - 1) return;
+  [cats[idx], cats[idx + 1]] = [cats[idx + 1], cats[idx]];
+  saveCategories(cats);
+  renderCategorySection();
+}
+
+function commitCategoryRename(input) {
+  const idx          = parseInt(input.dataset.index, 10);
+  const originalName = input.dataset.original;
+  const newName      = input.value.trim();
+
+  appState.editingCategoryIndex = null;
+
+  // No change
+  if (newName === originalName) {
+    renderCategorySection();
+    return;
+  }
+
+  // Validation
+  const cats = getCategories();
+  if (!newName) {
+    renderCategorySection();
+    return;
+  }
+  const duplicate = cats.some((c, i) => i !== idx && c.toLowerCase() === newName.toLowerCase());
+  if (duplicate) {
+    renderCategorySection();
+    return;
+  }
+
+  // Update menu items that reference the old name
+  const menu = getMenu() || [];
+  menu.forEach(item => {
+    if (item.category === originalName) item.category = newName;
+  });
+  saveMenu(menu);
+
+  // Update categories
+  cats[idx] = newName;
+  saveCategories(cats);
+
+  renderMenuTable();
+  renderOrderPanel();
+}
+
+function deleteCategoryAt(idx) {
+  const cats = getCategories();
+  if (cats.length === 1) return; // guard: never delete last category
+
+  const catName  = cats[idx];
+  const menu     = getMenu() || [];
+  const affected = menu.filter(i => i.category === catName).length;
+
+  if (affected > 0) {
+    const ok = confirm(
+      `This category has ${affected} item(s). They will not appear in the order panel until reassigned to another category. Delete anyway?`
+    );
+    if (!ok) return;
+  }
+
+  cats.splice(idx, 1);
+  saveCategories(cats);
+  renderMenuTable();
+  renderOrderPanel();
+}
+
+function handleAddCategory() {
+  const input   = document.getElementById('new-category-name');
+  const errorEl = document.getElementById('cat-error');
+  const name    = input.value.trim();
+
+  errorEl.textContent = '';
+
+  if (!name) {
+    errorEl.textContent = 'Category name is required.';
+    return;
+  }
+
+  const cats = getCategories();
+  if (cats.some(c => c.toLowerCase() === name.toLowerCase())) {
+    errorEl.textContent = 'A category with that name already exists.';
+    return;
+  }
+
+  cats.push(name);
+  saveCategories(cats);
+  input.value = '';
+  renderMenuTable(); // update the add-item category select and category section
+}
+
+// ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
 function renderMenuTable() {
+  // Populate the Add Item category select from live categories
+  const catSel = document.getElementById('new-category');
+  const categories = getCategories();
+  catSel.innerHTML = categories.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
+
+  renderCategorySection();
+
   const menu = getMenu() || [];
   const container = document.getElementById('menu-table');
-  const categories = ['Drinks', 'Food'];
 
   if (menu.length === 0) {
     container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
@@ -431,7 +652,7 @@ function renderMenuTable() {
     if (items.length === 0) return '';
     return `
       <div class="menu-table-category">
-        <div class="menu-table-category-header">${cat}</div>
+        <div class="menu-table-category-header">${escHtml(cat)}</div>
         <table>
           <thead><tr><th>Name</th><th>Price</th><th>Available</th><th>Actions</th></tr></thead>
           <tbody>
@@ -440,23 +661,17 @@ function renderMenuTable() {
         </table>
       </div>`;
   }).join('');
-
-  // re-attach edit/delete handlers
-  container.querySelectorAll('[data-action]').forEach(el => {
-    el.addEventListener('click', handleMenuAction);
-  });
 }
 
 function renderMenuRow(item) {
-  if (editingRowId === item.id) {
+  if (appState.editingRowId === item.id) {
     return `
       <tr data-id="${item.id}">
         <td><input type="text" class="edit-name" value="${escHtml(item.name)}" maxlength="50" required></td>
         <td><input type="number" class="edit-price" value="${item.price}" min="1" step="1" required></td>
         <td>
           <select class="edit-category">
-            <option value="Drinks" ${item.category === 'Drinks' ? 'selected' : ''}>Drinks</option>
-            <option value="Food"   ${item.category === 'Food'   ? 'selected' : ''}>Food</option>
+            ${getCategories().map(cat => `<option value="${escHtml(cat)}" ${item.category === cat ? 'selected' : ''}>${escHtml(cat)}</option>`).join('')}
           </select>
           <input type="checkbox" class="edit-available" ${item.available ? 'checked' : ''} title="Available">
         </td>
@@ -482,6 +697,8 @@ function escHtml(str) {
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// Dead code — superseded by #menu-table delegation listener. Uses e.currentTarget,
+// which would not be the button in a delegated context — do not re-attach directly.
 function handleMenuAction(e) {
   const action = e.currentTarget.dataset.action;
   const id = parseInt(e.currentTarget.dataset.id, 10);
@@ -492,12 +709,12 @@ function handleMenuAction(e) {
 }
 
 function startEditRow(id) {
-  editingRowId = id;
+  appState.editingRowId = id;
   renderMenuTable();
 }
 
 function cancelEditRow() {
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
 
@@ -517,7 +734,7 @@ function saveEditRow(id) {
   if (idx === -1) return;
   menu[idx] = { id, name, price, category, available };
   saveMenu(menu);
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
 
@@ -528,9 +745,21 @@ function deleteMenuItem(id) {
   if (!item) return;
   if (!confirm(`Delete "${item.name}"?`)) return;
   saveMenu(menu.filter(i => i.id !== id));
-  editingRowId = null;
+  appState.editingRowId = null;
   renderMenuTable();
 }
+
+// ─── MENU TABLE DELEGATION ───────────────────────────────────────────────────
+document.getElementById('menu-table').addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = parseInt(btn.dataset.id, 10);
+  if (action === 'edit')             startEditRow(id);
+  else if (action === 'cancel-edit') cancelEditRow();
+  else if (action === 'save-edit')   saveEditRow(id);
+  else if (action === 'delete')      deleteMenuItem(id);
+});
 
 // ─── ADMIN: ADD ITEM FORM ─────────────────────────────────────────────────────
 document.getElementById('add-item-form').addEventListener('submit', function(e) {
@@ -599,13 +828,13 @@ function renderOrderPanel() {
     return;
   }
 
-  const categories = ['Drinks', 'Food'];
+  const categories = getCategories();
   const categorySections = categories.map(cat => {
     const items = availableItems.filter(i => i.category === cat);
     if (items.length === 0) return '';
     return `
       <div class="menu-category">
-        <h3>${cat}</h3>
+        <h3>${escHtml(cat)}</h3>
         ${items.map(item => {
           const qty = appState.panelQtys[item.id] || 0;
           return `
@@ -688,25 +917,6 @@ function renderTicketCards() {
         </div>
       </div>`;
   }).join('');
-
-  // Card click → open in panel
-  container.querySelectorAll('.ticket-card:not(.served)').forEach(card => {
-    card.addEventListener('click', e => {
-      // Don't fire if clicking the dropdown itself
-      if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
-      const id = parseInt(card.dataset.ticketId, 10);
-      openTicketInPanel(id);
-    });
-  });
-
-  // Status dropdown change
-  container.querySelectorAll('.status-select').forEach(sel => {
-    sel.addEventListener('change', e => {
-      e.stopPropagation();
-      const id = parseInt(sel.dataset.ticketId, 10);
-      updateTicketStatus(id, sel.value);
-    });
-  });
 
   renderDraftBanner();
 }
@@ -806,7 +1016,7 @@ function renderReportTab() {
     return entry.qty === 0 ? '—' : `${entry.qty} — ${formatPrice(entry.sub)}`;
   }
 
-  const categories = ['Drinks', 'Food'];
+  const categories = getCategories();
   let tableBody = '';
   categories.forEach(cat => {
     const items = Object.values(itemMap).filter(i => i.category === cat);
@@ -908,6 +1118,20 @@ function closePanel() {
   document.getElementById('orders-tab').classList.remove('panel-open');
   renderOrderPanel();
 }
+
+// ─── TICKET CARDS DELEGATION ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('ticket-cards').addEventListener('click', e => {
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+  const card = e.target.closest('.ticket-card:not(.served)');
+  if (!card) return;
+  openTicketInPanel(parseInt(card.dataset.ticketId, 10));
+});
+
+document.getElementById('ticket-cards').addEventListener('change', e => {
+  const sel = e.target.closest('.status-select');
+  if (!sel) return;
+  updateTicketStatus(parseInt(sel.dataset.ticketId, 10), sel.value);
+});
 
 // ─── NEW ORDER BUTTON ─────────────────────────────────────────────────────────
 document.getElementById('btn-new-order').addEventListener('click', () => {
@@ -1053,6 +1277,7 @@ document.addEventListener('keydown', e => {
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
 loadOrders();
 seedMenuIfNeeded();
+seedCategoriesIfNeeded();
 initTabs();
 renderOrderPanel();
 renderTicketCards();
