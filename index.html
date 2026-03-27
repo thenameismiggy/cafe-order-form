@@ -568,15 +568,15 @@ function handleAddCategory() {
 
 // ─── ADMIN: RENDER MENU TABLE ─────────────────────────────────────────────────
 function renderMenuTable() {
-  const menu = getMenu() || [];
-  const container = document.getElementById('menu-table');
-
   // Populate the Add Item category select from live categories
   const catSel = document.getElementById('new-category');
   const categories = getCategories();
   catSel.innerHTML = categories.map(cat => `<option value="${escHtml(cat)}">${escHtml(cat)}</option>`).join('');
 
   renderCategorySection();
+
+  const menu = getMenu() || [];
+  const container = document.getElementById('menu-table');
 
   if (menu.length === 0) {
     container.innerHTML = '<p style="padding:1.5rem;color:#aaa;text-align:center;">No menu items yet. Add one above.</p>';
