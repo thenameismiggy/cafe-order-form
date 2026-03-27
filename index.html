@@ -282,10 +282,15 @@ const appState = {
 };
 
 // ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
+let _menuCache = null;
+
 function getMenu() {
-  return JSON.parse(localStorage.getItem('menu') || 'null');
+  if (_menuCache !== null) return _menuCache;
+  _menuCache = JSON.parse(localStorage.getItem('menu') || 'null');
+  return _menuCache;
 }
 function saveMenu(menu) {
+  _menuCache = null;
   localStorage.setItem('menu', JSON.stringify(menu));
 }
 function getIdCounter() {
