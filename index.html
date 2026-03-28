@@ -1147,9 +1147,15 @@ function openTicketInPanel(id) {
   }
   const ticket = appState.tickets.find(t => t.id === id);
   if (!ticket) return;
-  // Populate panelQtys from ticket's line items
+  // Populate panelQtys and panelFlavors from ticket's line items
   appState.panelQtys = {};
-  ticket.lineItems.forEach(l => { appState.panelQtys[l.itemId] = l.quantity; });
+  appState.panelFlavors = [];
+  ticket.lineItems.forEach(l => {
+    appState.panelQtys[l.itemId] = l.quantity;
+    if (l.name === 'French Fries' && Array.isArray(l.flavors)) {
+      appState.panelFlavors = [...l.flavors];
+    }
+  });
   appState.panelTicketId = id;
   appState.panelOpen = true;
   document.getElementById('orders-tab').classList.add('panel-open');
@@ -1161,6 +1167,7 @@ function closePanel() {
   appState.panelOpen = false;
   appState.panelTicketId = null;
   appState.panelQtys = {};
+  appState.panelFlavors = [];
   document.getElementById('orders-tab').classList.remove('panel-open');
   renderOrderPanel();
 }
@@ -1186,6 +1193,7 @@ document.getElementById('btn-new-order').addEventListener('click', () => {
   }
   appState.panelTicketId = null;
   appState.panelQtys = {};
+  appState.panelFlavors = [];
   appState.panelOpen = true;
   document.getElementById('orders-tab').classList.add('panel-open');
   renderOrderPanel();
@@ -1222,6 +1230,7 @@ function buildLineItems() {
       name: item.name,
       price: item.price,
       quantity: appState.panelQtys[item.id],
+      ...(item.name === 'French Fries' ? { flavors: [...appState.panelFlavors] } : {}),
     }));
 }
 
