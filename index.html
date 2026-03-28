@@ -1128,11 +1128,16 @@ function renderReportTab() {
               <span class="status-badge ${statusClass[ticket.status]}">${escHtml(ticket.status)}</span>
             </div>
             <div class="report-order-items">
-              ${ticket.lineItems.map(l => `
+              ${ticket.lineItems.map(l => {
+                const displayName = (l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0)
+                  ? `${l.name} (${l.flavors.join(' / ')})`
+                  : l.name;
+                return `
                 <div class="report-order-line">
-                  <span>${escHtml(l.name)} × ${l.quantity}</span>
+                  <span>${escHtml(displayName)} × ${l.quantity}</span>
                   <span>${formatPrice(l.price * l.quantity)}</span>
-                </div>`).join('')}
+                </div>`;
+              }).join('')}
               <div class="report-order-total">
                 <span>Total</span>
                 <span>${formatPrice(ticket.total)}</span>
