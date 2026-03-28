@@ -203,6 +203,15 @@
       /* Modal */
       .modal-box { padding: 1.1rem; margin: 0 1rem; }
     }
+
+    /* === FRIES FLAVOR PICKER === */
+    .fries-flavor-picker { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; padding: 0.4rem 0 0.2rem 0; font-size: 0.85rem; color: #555; }
+    .flavor-label { font-weight: 600; color: #444; }
+    .flavor-option { display: flex; align-items: center; gap: 0.25rem; cursor: pointer; }
+    .flavor-option.disabled { opacity: 0.4; cursor: not-allowed; }
+    .flavor-option input { cursor: pointer; }
+    .flavor-option.disabled input { cursor: not-allowed; }
+    .ticket-fries-flavor { font-size: 0.78rem; color: #777; margin-top: 0.2rem; }
   </style>
 </head>
 <body>
@@ -301,6 +310,7 @@ const appState = {
   nextTicketId: 1,      // monotonic counter for ticket IDs, avoids Date.now() collisions
   panelTicketId: null,  // id of ticket currently open in panel (null = new order)
   panelQtys: {},        // { itemId: quantity } — current panel quantities (unsaved)
+  panelFlavors: [],     // string[], 0–2 entries — selected fries flavors (unsaved)
   panelOpen: false,     // is the panel showing an order form?
   editingRowId: null,   // id of menu item currently being inline-edited
   editingCategoryIndex: null,
@@ -420,6 +430,9 @@ const DEFAULT_MENU = [
   { name: 'Kikiam',            price: 30,  category: 'Food',   available: true },
   { name: 'Cheese Sticks',     price: 45,  category: 'Food',   available: true },
 ];
+
+// ─── FRIES FLAVORS ────────────────────────────────────────────────────────────
+const FRIES_FLAVORS = ['Cheese', 'BBQ', 'Sour Cream'];
 
 function seedMenuIfNeeded() {
   if (localStorage.getItem('menu') === null) {
