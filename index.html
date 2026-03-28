@@ -850,6 +850,19 @@ function renderOrderPanel() {
         <h3>${escHtml(cat)}</h3>
         ${items.map(item => {
           const qty = appState.panelQtys[item.id] || 0;
+          const isFries = item.name === 'French Fries';
+          const flavorPickerHtml = (isFries && qty > 0) ? `
+            <div class="fries-flavor-picker">
+              <span class="flavor-label">Flavor:</span>
+              ${FRIES_FLAVORS.map(f => {
+                const checked = appState.panelFlavors.includes(f);
+                const disabled = !checked && appState.panelFlavors.length >= 2;
+                return `<label class="flavor-option${disabled ? ' disabled' : ''}">
+                  <input type="checkbox" class="flavor-checkbox" data-flavor="${escHtml(f)}"
+                    ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}> ${escHtml(f)}
+                </label>`;
+              }).join('')}
+            </div>` : '';
           return `
             <div class="menu-item-row">
               <div class="item-info">
@@ -861,6 +874,7 @@ function renderOrderPanel() {
                 <span class="qty">${qty}</span>
                 <button class="stepper-plus" data-item-id="${item.id}" ${qty >= 10 ? 'disabled' : ''} aria-label="Increase">+</button>
               </div>
+              ${flavorPickerHtml}
             </div>`;
         }).join('')}
       </div>`;
