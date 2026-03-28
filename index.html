@@ -963,7 +963,7 @@ function renderTicketCards() {
         </div>
         ${(() => {
           const friesLine = ticket.lineItems.find(l => l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0);
-          return friesLine ? `<div class="ticket-fries-flavor">Fries: ${escHtml(friesLine.flavors.join(' / '))}</div>` : '';
+          return friesLine ? `<div class="ticket-fries-flavor">Fries: ${friesLine.flavors.map(escHtml).join(' / ')}</div>` : '';
         })()}
       </div>`;
   }).join('');
@@ -1129,12 +1129,12 @@ function renderReportTab() {
             </div>
             <div class="report-order-items">
               ${ticket.lineItems.map(l => {
-                const displayName = (l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0)
-                  ? `${l.name} (${l.flavors.join(' / ')})`
-                  : l.name;
+                const flavorSuffix = (l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0)
+                  ? ` (${l.flavors.map(escHtml).join(' / ')})`
+                  : '';
                 return `
                 <div class="report-order-line">
-                  <span>${escHtml(displayName)} × ${l.quantity}</span>
+                  <span>${escHtml(l.name)}${flavorSuffix} × ${l.quantity}</span>
                   <span>${formatPrice(l.price * l.quantity)}</span>
                 </div>`;
               }).join('')}
