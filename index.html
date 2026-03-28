@@ -911,8 +911,27 @@ function renderOrderPanel() {
       const id = parseInt(btn.dataset.itemId, 10);
       if ((appState.panelQtys[id] || 0) > 0) {
         appState.panelQtys[id]--;
+        const menu = getMenu() || [];
+        const item = menu.find(m => m.id === id);
+        if (item && item.name === 'French Fries' && appState.panelQtys[id] === 0) {
+          appState.panelFlavors = [];
+        }
         renderOrderPanel();
       }
+    });
+  });
+
+  panelEl.querySelectorAll('.flavor-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const flavor = cb.dataset.flavor;
+      if (cb.checked) {
+        if (appState.panelFlavors.length < 2) {
+          appState.panelFlavors = [...appState.panelFlavors, flavor];
+        }
+      } else {
+        appState.panelFlavors = appState.panelFlavors.filter(f => f !== flavor);
+      }
+      renderOrderPanel();
     });
   });
 }
