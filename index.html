@@ -439,6 +439,17 @@
       backdrop-filter: blur(2px);
     }
     #confirmation-modal.open { display: flex; }
+    #served-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(28,16,5,0.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+    #served-modal.open { display: flex; }
     .modal-box {
       background: var(--surface);
       border-radius: var(--radius-lg);
@@ -475,7 +486,7 @@
       margin-bottom: 1.5rem;
       color: var(--text);
     }
-    .modal-actions { display: flex; justify-content: flex-end; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 
     /* === EMPTY STATES === */
     .empty-list { padding: 2rem 1rem; text-align: center; color: var(--text-3); font-size: 0.88rem; }
@@ -911,10 +922,27 @@
     </div>
   </div>
 
+  <!-- SERVED CONFIRMATION MODAL -->
+  <div id="served-modal" role="dialog" aria-modal="true" aria-labelledby="served-modal-title">
+    <div class="modal-box">
+      <h2 id="served-modal-title">Mark as Served?</h2>
+      <div id="served-modal-order-num" class="modal-order-num"></div>
+      <div class="modal-line-items" id="served-modal-line-items"></div>
+      <div class="modal-total">
+        <span>Total</span>
+        <span id="served-modal-total"></span>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btn-served-cancel">Cancel</button>
+        <button class="btn btn-primary" id="btn-served-confirm">Mark as Served</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Password Gate Modal -->
   <div id="auth-modal" class="auth-modal hidden" role="dialog" aria-modal="true" aria-labelledby="auth-title">
     <div class="auth-modal-box">
-      <h2 id="auth-title">Café Order Form</h2>
+      <h2 id="auth-title">The Coffee Day Club</h2>
       <p class="auth-modal-sub">Enter the password to continue.</p>
       <input type="password" id="auth-password-input" class="auth-password-input" placeholder="Password" autocomplete="current-password" />
       <p id="auth-error" class="auth-error" aria-live="polite"></p>
@@ -2139,7 +2167,18 @@ document.getElementById('ticket-cards').addEventListener('click', e => {
 document.getElementById('ticket-cards').addEventListener('change', e => {
   const sel = e.target.closest('.status-select');
   if (!sel) return;
-  updateTicketStatus(parseInt(sel.dataset.ticketId, 10), sel.value);
+  const id = parseInt(sel.dataset.ticketId, 10);
+  const newStatus = sel.value;
+  if (newStatus === 'Served') {
+    const ticket = appState.tickets.find(t => t.id === id);
+    if (ticket) {
+      // Revert dropdown visually until confirmed
+      sel.value = ticket.status;
+      showServedModal(ticket);
+    }
+  } else {
+    updateTicketStatus(id, newStatus);
+  }
 });
 
 // ─── NEW ORDER BUTTON ─────────────────────────────────────────────────────────
@@ -2280,9 +2319,41 @@ document.getElementById('confirmation-modal').addEventListener('click', e => {
   if (e.target === document.getElementById('confirmation-modal')) hideModal();
 });
 
-// Dismiss on Escape key
+// ─── SERVED CONFIRMATION MODAL ────────────────────────────────────────────────
+let _servedPendingId = null;
+
+function showServedModal(ticket) {
+  _servedPendingId = ticket.id;
+  document.getElementById('served-modal-order-num').textContent = 'Order ' + ticket.orderNum;
+  document.getElementById('served-modal-line-items').innerHTML = ticket.lineItems.map(l => `
+    <div class="modal-line-item">
+      <span>${escHtml(l.name)} × ${l.quantity}</span>
+      <span>${formatPrice(l.price * l.quantity)}</span>
+    </div>`).join('');
+  document.getElementById('served-modal-total').textContent = formatPrice(ticket.total);
+  document.getElementById('served-modal').classList.add('open');
+}
+
+function hideServedModal() {
+  _servedPendingId = null;
+  document.getElementById('served-modal').classList.remove('open');
+}
+
+document.getElementById('btn-served-confirm').addEventListener('click', () => {
+  if (_servedPendingId !== null) {
+    updateTicketStatus(_servedPendingId, 'Served');
+  }
+  hideServedModal();
+});
+
+document.getElementById('btn-served-cancel').addEventListener('click', hideServedModal);
+
+document.getElementById('served-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('served-modal')) hideServedModal();
+});
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') hideModal();
+  if (e.key === 'Escape') { hideModal(); hideServedModal(); }
 });
 
 // ─── STARTUP ──────────────────────────────────────────────────────────────────
