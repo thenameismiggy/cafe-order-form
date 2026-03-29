@@ -895,19 +895,31 @@ function deleteMenuItem(id) {
 }
 
 // ─── ADMIN: STORED RECORDS ────────────────────────────────────────────────────
-function renderStoredRecords() {
+async function renderStoredRecords() {
   const container = document.getElementById('stored-records');
+  container.innerHTML = `
+    <div class="stored-records">
+      <h3>Stored Records</h3>
+      <p class="stored-records-empty">Loading…</p>
+    </div>`;
 
-  const allKeys = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (/^orders_\d{4}-\d{2}-\d{2}$/.test(key) && key !== TODAY_KEY) {
-      allKeys.push(key);
-    }
+  let allDates = [];
+  try {
+    const snap = await getDocs(collection(db, 'orders'));
+    allDates = snap.docs
+      .map(d => d.id)
+      .filter(id => /^\d{4}-\d{2}-\d{2}$/.test(id) && id !== TODAY_DATE_STR)
+      .sort((a, b) => b.localeCompare(a)); // most recent first
+  } catch {
+    container.innerHTML = `
+      <div class="stored-records">
+        <h3>Stored Records</h3>
+        <p class="stored-records-empty">Could not load records.</p>
+      </div>`;
+    return;
   }
-  allKeys.sort((a, b) => b.localeCompare(a)); // most recent first
 
-  if (allKeys.length === 0) {
+  if (allDates.length === 0) {
     container.innerHTML = `
       <div class="stored-records">
         <h3>Stored Records</h3>
@@ -916,13 +928,12 @@ function renderStoredRecords() {
     return;
   }
 
-  const rowsHtml = allKeys.map(key => {
-    const datePart = key.slice(7);
-    const label = new Date(datePart + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const rowsHtml = allDates.map(dateId => {
+    const label = new Date(dateId + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     return `
       <div class="stored-record-row">
-        <input type="checkbox" class="stored-record-cb" data-key="${escHtml(key)}" id="cb-${escHtml(key)}">
-        <label for="cb-${escHtml(key)}">${escHtml(label)}</label>
+        <input type="checkbox" class="stored-record-cb" data-key="${escHtml(dateId)}" id="cb-${escHtml(dateId)}">
+        <label for="cb-${escHtml(dateId)}">${escHtml(label)}</label>
       </div>`;
   }).join('');
 
@@ -942,11 +953,11 @@ function renderStoredRecords() {
     });
   });
 
-  container.querySelector('#btn-delete-records').addEventListener('click', () => {
+  container.querySelector('#btn-delete-records').addEventListener('click', async () => {
     const checked = Array.from(container.querySelectorAll('.stored-record-cb:checked'));
     const count = checked.length;
     if (!confirm(`Delete records for ${count} day${count === 1 ? '' : 's'}? This cannot be undone.`)) return;
-    checked.forEach(cb => localStorage.removeItem(cb.dataset.key));
+    await Promise.all(checked.map(cb => deleteDoc(doc(db, 'orders', cb.dataset.key))));
     renderStoredRecords();
   });
 }
