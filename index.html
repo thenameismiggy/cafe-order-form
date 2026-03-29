@@ -524,34 +524,12 @@ function showStorageError() {
   document.body.insertBefore(banner, document.body.firstChild);
 }
 
-function persistOrders() {
-  try {
-    localStorage.setItem(TODAY_KEY, JSON.stringify({
-      tickets: appState.tickets,
-      nextOrderNum: appState.nextOrderNum,
-      nextTicketId: appState.nextTicketId,
-    }));
-  } catch (e) {
-    showStorageError();
-  }
-}
-
-function loadOrders() {
-  try {
-    const raw = localStorage.getItem(TODAY_KEY);
-    if (raw === null) return; // nothing saved today — fresh start
-    const parsed = JSON.parse(raw);
-    if (
-      !Array.isArray(parsed.tickets) ||
-      !(Number.isInteger(parsed.nextOrderNum) && parsed.nextOrderNum >= 1) ||
-      !(Number.isInteger(parsed.nextTicketId) && parsed.nextTicketId >= 1)
-    ) return; // invalid structure — fresh start
-    appState.tickets = parsed.tickets;
-    appState.nextOrderNum = parsed.nextOrderNum;
-    appState.nextTicketId = parsed.nextTicketId;
-  } catch (e) {
-    // localStorage unavailable or JSON corrupt — fresh start, no banner at load time
-  }
+function saveOrders() {
+  setDoc(doc(db, 'orders', TODAY_DATE_STR), {
+    tickets: appState.tickets,
+    nextOrderNum: appState.nextOrderNum,
+    nextTicketId: appState.nextTicketId,
+  });
 }
 
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
@@ -1211,7 +1189,7 @@ function updateTicketStatus(id, status) {
   }
   renderTicketCards();
   renderReportTab();
-  persistOrders();
+  saveOrders();
 }
 
 // ─── REPORT DATE CONTROLS ─────────────────────────────────────────────────────
@@ -1565,7 +1543,7 @@ function handleSave() {
   closePanel();
   renderTicketCards();
   renderReportTab();
-  persistOrders();
+  saveOrders();
 }
 
 function handleCancel() {
@@ -1603,7 +1581,7 @@ function handleSubmit() {
   renderTicketCards();
   renderReportTab();
   showModal(orderNum, lineItems, total);
-  persistOrders();
+  saveOrders();
 }
 
 // ─── CONFIRMATION MODAL ───────────────────────────────────────────────────────
@@ -1635,7 +1613,6 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── INITIAL RENDER ───────────────────────────────────────────────────────────
-loadOrders();
 seedMenuIfNeeded();
 seedCategoriesIfNeeded();
 initTabs();
