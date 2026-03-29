@@ -390,10 +390,10 @@ function datesInRange(fromStr, toStr) {
   return dates;
 }
 
-function loadOrdersForDate(dateStr) {
-  if (dateStr === TODAY_DATE_STR) return appState.tickets;
+function loadOrdersForDate(targetDateStr) {
+  if (targetDateStr === TODAY_DATE_STR) return appState.tickets;
   try {
-    const raw = localStorage.getItem('orders_' + dateStr);
+    const raw = localStorage.getItem('orders_' + targetDateStr);
     if (raw === null) return [];
     const parsed = JSON.parse(raw);
     if (
