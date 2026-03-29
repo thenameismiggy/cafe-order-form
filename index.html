@@ -454,6 +454,49 @@ function startApp() {
   migrateOrSeed();
 }
 
+async function migrateOrSeed() {
+  // Check if Firestore already has menu data
+  const menuSnap = await getDoc(doc(db, 'config', 'menu'));
+  if (menuSnap.exists()) return; // already set up — nothing to migrate
+
+  const localMenu = localStorage.getItem('menu');
+  if (localMenu) {
+    // ── Migrate from localStorage ──────────────────────────────────────────
+    const items = JSON.parse(localMenu);
+    const idCounter = parseInt(localStorage.getItem('menuIdCounter') || '0', 10);
+    await setDoc(doc(db, 'config', 'menu'), { items, idCounter });
+
+    const localCats = localStorage.getItem('categories');
+    if (localCats) {
+      await setDoc(doc(db, 'config', 'categories'), { list: JSON.parse(localCats) });
+    } else {
+      await seedCategoriesIfNeeded();
+    }
+
+    // Migrate all historical orders
+    const keysToMigrate = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (/^orders_\d{4}-\d{2}-\d{2}$/.test(key)) keysToMigrate.push(key);
+    }
+    for (const key of keysToMigrate) {
+      const dateId = key.slice(7); // strip 'orders_' prefix
+      const data = JSON.parse(localStorage.getItem(key));
+      await setDoc(doc(db, 'orders', dateId), data);
+      localStorage.removeItem(key);
+    }
+
+    // Clean up remaining localStorage keys
+    localStorage.removeItem('menu');
+    localStorage.removeItem('menuIdCounter');
+    localStorage.removeItem('categories');
+  } else {
+    // ── Fresh install — seed defaults ──────────────────────────────────────
+    await seedMenuIfNeeded();
+    await seedCategoriesIfNeeded();
+  }
+}
+
 document.getElementById('auth-submit-btn').addEventListener('click', handlePasswordSubmit);
 document.getElementById('auth-password-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') handlePasswordSubmit();
