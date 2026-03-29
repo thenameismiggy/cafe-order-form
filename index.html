@@ -364,6 +364,63 @@ const _app = initializeApp(firebaseConfig);
 const db   = getFirestore(_app);
 const auth = getAuth(_app);
 
+function showPasswordModal() {
+  document.getElementById('auth-modal').classList.remove('hidden');
+  document.getElementById('auth-password-input').focus();
+}
+
+function hidePasswordModal() {
+  document.getElementById('auth-modal').classList.add('hidden');
+}
+
+async function checkPassword(entered) {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'access'));
+    if (!snap.exists()) return false;
+    return snap.data().password === entered;
+  } catch {
+    return false;
+  }
+}
+
+async function handlePasswordSubmit() {
+  const input = document.getElementById('auth-password-input');
+  const errorEl = document.getElementById('auth-error');
+  const btn = document.getElementById('auth-submit-btn');
+  const entered = input.value;
+  if (!entered) { errorEl.textContent = 'Please enter the password.'; return; }
+
+  btn.disabled = true;
+  errorEl.textContent = '';
+  const ok = await checkPassword(entered);
+  btn.disabled = false;
+
+  if (ok) {
+    sessionStorage.setItem('auth', 'ok');
+    hidePasswordModal();
+    startApp();
+  } else {
+    errorEl.textContent = 'Incorrect password.';
+    input.value = '';
+    input.focus();
+  }
+}
+
+async function initFirebase() {
+  await signInAnonymously(auth);
+  if (sessionStorage.getItem('auth') === 'ok') {
+    hidePasswordModal();
+    startApp();
+  } else {
+    showPasswordModal();
+  }
+}
+
+document.getElementById('auth-submit-btn').addEventListener('click', handlePasswordSubmit);
+document.getElementById('auth-password-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') handlePasswordSubmit();
+});
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const appState = {
   tickets: [],          // array of ticket objects
