@@ -300,6 +300,8 @@
     <div class="table-scroll-wrap">
       <div class="menu-table" id="menu-table"><!-- rendered by JS --></div>
     </div>
+
+    <div id="stored-records"><!-- rendered by JS --></div>
   </div>
 
   <!-- REPORT TAB -->
@@ -531,7 +533,7 @@ function initTabs() {
         document.getElementById(id).classList.toggle('active', id === tabId);
       });
       // Per-tab side effects
-      if (tabId === 'admin-tab') renderMenuTable();
+      if (tabId === 'admin-tab') { renderMenuTable(); renderStoredRecords(); }
       if (tabId === 'report-tab') renderReportTab();
     });
   });
@@ -830,6 +832,63 @@ function deleteMenuItem(id) {
   saveMenu(menu.filter(i => i.id !== id));
   appState.editingRowId = null;
   renderMenuTable();
+}
+
+// ─── ADMIN: STORED RECORDS ────────────────────────────────────────────────────
+function renderStoredRecords() {
+  const container = document.getElementById('stored-records');
+
+  const allKeys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (/^orders_\d{4}-\d{2}-\d{2}$/.test(key) && key !== TODAY_KEY) {
+      allKeys.push(key);
+    }
+  }
+  allKeys.sort((a, b) => b.localeCompare(a)); // most recent first
+
+  if (allKeys.length === 0) {
+    container.innerHTML = `
+      <div class="stored-records">
+        <h3>Stored Records</h3>
+        <p class="stored-records-empty">No previous records stored.</p>
+      </div>`;
+    return;
+  }
+
+  const rowsHtml = allKeys.map(key => {
+    const datePart = key.slice(7);
+    const label = new Date(datePart + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return `
+      <div class="stored-record-row">
+        <input type="checkbox" class="stored-record-cb" data-key="${escHtml(key)}" id="cb-${escHtml(key)}">
+        <label for="cb-${escHtml(key)}">${escHtml(label)}</label>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="stored-records">
+      <h3>Stored Records</h3>
+      <div class="stored-record-list">${rowsHtml}</div>
+      <div class="stored-records-actions">
+        <button class="btn btn-danger btn-sm" id="btn-delete-records" disabled>Delete Selected</button>
+      </div>
+    </div>`;
+
+  container.querySelectorAll('.stored-record-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const anyChecked = container.querySelectorAll('.stored-record-cb:checked').length > 0;
+      document.getElementById('btn-delete-records').disabled = !anyChecked;
+    });
+  });
+
+  document.getElementById('btn-delete-records').addEventListener('click', () => {
+    const checked = Array.from(container.querySelectorAll('.stored-record-cb:checked'));
+    const count = checked.length;
+    if (!confirm(`Delete records for ${count} day${count === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    checked.forEach(cb => localStorage.removeItem(cb.dataset.key));
+    renderStoredRecords();
+  });
 }
 
 // ─── MENU TABLE DELEGATION ───────────────────────────────────────────────────
