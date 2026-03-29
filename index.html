@@ -498,19 +498,19 @@ function datesInRange(fromStr, toStr) {
   return dates;
 }
 
-function loadOrdersForDate(targetDateStr) {
+async function loadOrdersForDate(targetDateStr) {
   if (targetDateStr === TODAY_DATE_STR) return appState.tickets;
   try {
-    const raw = localStorage.getItem('orders_' + targetDateStr);
-    if (raw === null) return [];
-    const parsed = JSON.parse(raw);
+    const snap = await getDoc(doc(db, 'orders', targetDateStr));
+    if (!snap.exists()) return [];
+    const parsed = snap.data();
     if (
       !Array.isArray(parsed.tickets) ||
       !(Number.isInteger(parsed.nextOrderNum) && parsed.nextOrderNum >= 1) ||
       !(Number.isInteger(parsed.nextTicketId) && parsed.nextTicketId >= 1)
     ) return [];
     return parsed.tickets;
-  } catch (e) {
+  } catch {
     return [];
   }
 }
@@ -1259,7 +1259,7 @@ function attachReportDateListeners() {
 }
 
 // ─── REPORT TAB ───────────────────────────────────────────────────────────────
-function renderReportTab() {
+async function renderReportTab() {
   // Guard: will be called from state mutations — skip when report tab is not visible.
   const reportPanel = document.getElementById('report-tab');
   if (!reportPanel.classList.contains('active')) return;
@@ -1267,10 +1267,15 @@ function renderReportTab() {
   const container = document.getElementById('report-content');
   const controlsHtml = renderReportDateControlsHtml();
 
+  // Show loading state while fetching (covers multi-day and historical ranges)
+  container.innerHTML = controlsHtml + '<p class="report-empty">Loading…</p>';
+  attachReportDateListeners();
+
   const TRACKED = ['Served', 'Ready', 'Preparing'];
   const allDates = datesInRange(reportState.fromDate, reportState.toDate);
+  const ticketArrays = await Promise.all(allDates.map(d => loadOrdersForDate(d)));
   const ticketsByDate = allDates
-    .map(d => ({ date: d, tickets: loadOrdersForDate(d).filter(t => TRACKED.includes(t.status)) }))
+    .map((d, i) => ({ date: d, tickets: ticketArrays[i].filter(t => TRACKED.includes(t.status)) }))
     .filter(({ tickets }) => tickets.length > 0);
   const allTickets = ticketsByDate.flatMap(({ tickets }) => tickets);
 
