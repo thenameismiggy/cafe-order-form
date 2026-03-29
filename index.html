@@ -358,6 +358,55 @@ const TODAY_KEY = 'orders_' + _d.getFullYear() + '-' +
 // NOTE: TODAY_KEY is fixed at page load. If a tab remains open past midnight,
 // new orders write to the previous day's key. Staff should refresh at shift start.
 
+const TODAY_DATE_STR = TODAY_KEY.slice(7); // e.g. '2026-03-29'
+
+// ─── REPORT STATE ─────────────────────────────────────────────────────────────
+const reportState = {
+  activePreset: 'today',
+  fromDate: TODAY_DATE_STR,
+  toDate: TODAY_DATE_STR,
+};
+
+function dateStr(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function datesInRange(fromStr, toStr) {
+  const dates = [];
+  const cur = new Date(fromStr + 'T00:00:00');
+  const end = new Date(toStr + 'T00:00:00');
+  while (cur <= end) {
+    dates.push(
+      cur.getFullYear() + '-' +
+      String(cur.getMonth() + 1).padStart(2, '0') + '-' +
+      String(cur.getDate()).padStart(2, '0')
+    );
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function loadOrdersForDate(dateStr) {
+  if (dateStr === TODAY_DATE_STR) return appState.tickets;
+  try {
+    const raw = localStorage.getItem('orders_' + dateStr);
+    if (raw === null) return [];
+    const parsed = JSON.parse(raw);
+    if (
+      !Array.isArray(parsed.tickets) ||
+      !(Number.isInteger(parsed.nextOrderNum) && parsed.nextOrderNum >= 1) ||
+      !(Number.isInteger(parsed.nextTicketId) && parsed.nextTicketId >= 1)
+    ) return [];
+    return parsed.tickets;
+  } catch (e) {
+    return [];
+  }
+}
+
 function showStorageError() {
   if (document.getElementById('storage-error-banner')) return;
   const banner = document.createElement('div');
