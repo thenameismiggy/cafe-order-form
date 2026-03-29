@@ -555,22 +555,20 @@ function loadOrders() {
 }
 
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
+let _categoriesCache = [];
+
 function getCategories() {
-  try {
-    const raw = localStorage.getItem('categories');
-    if (raw === null) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  return _categoriesCache;
 }
+
 function saveCategories(arr) {
-  localStorage.setItem('categories', JSON.stringify(arr));
+  _categoriesCache = arr;
+  setDoc(doc(db, 'config', 'categories'), { list: arr });
 }
-function seedCategoriesIfNeeded() {
-  if (localStorage.getItem('categories') === null) {
-    saveCategories(['Drinks', 'Food']);
-  }
+
+async function seedCategoriesIfNeeded() {
+  _categoriesCache = ['Drinks', 'Food'];
+  await setDoc(doc(db, 'config', 'categories'), { list: ['Drinks', 'Food'] });
 }
 
 
