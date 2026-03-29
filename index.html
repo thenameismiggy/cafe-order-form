@@ -1073,27 +1073,96 @@ function updateTicketStatus(id, status) {
   persistOrders();
 }
 
+// ─── REPORT DATE CONTROLS ─────────────────────────────────────────────────────
+function renderReportDateControlsHtml() {
+  const { activePreset, fromDate, toDate } = reportState;
+  return `
+    <div class="report-date-controls">
+      <div class="preset-btns">
+        <button class="preset-btn${activePreset === 'today' ? ' active' : ''}" data-preset="today">Today</button>
+        <button class="preset-btn${activePreset === 'yesterday' ? ' active' : ''}" data-preset="yesterday">Yesterday</button>
+        <button class="preset-btn${activePreset === 'last7' ? ' active' : ''}" data-preset="last7">Last 7 Days</button>
+      </div>
+      <div class="date-range-inputs">
+        <label>From <input type="date" id="report-from" value="${fromDate}"></label>
+        <label>To <input type="date" id="report-to" value="${toDate}"></label>
+        <button class="btn btn-sm btn-ghost" id="btn-report-apply">Apply</button>
+      </div>
+    </div>`;
+}
+
+function attachReportDateListeners() {
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      reportState.activePreset = preset;
+      if (preset === 'today') {
+        reportState.fromDate = TODAY_DATE_STR;
+        reportState.toDate = TODAY_DATE_STR;
+      } else if (preset === 'yesterday') {
+        const y = dateStr(-1);
+        reportState.fromDate = y;
+        reportState.toDate = y;
+      } else if (preset === 'last7') {
+        reportState.fromDate = dateStr(-6);
+        reportState.toDate = TODAY_DATE_STR;
+      }
+      renderReportTab();
+    });
+  });
+
+  function updateApplyState() {
+    const from = document.getElementById('report-from').value;
+    const to = document.getElementById('report-to').value;
+    const applyBtn = document.getElementById('btn-report-apply');
+    if (applyBtn) applyBtn.disabled = !from || !to || from > to;
+  }
+
+  const fromInput = document.getElementById('report-from');
+  const toInput = document.getElementById('report-to');
+  if (fromInput) fromInput.addEventListener('input', updateApplyState);
+  if (toInput) toInput.addEventListener('input', updateApplyState);
+
+  const applyBtn = document.getElementById('btn-report-apply');
+  if (applyBtn) {
+    updateApplyState();
+    applyBtn.addEventListener('click', () => {
+      const from = document.getElementById('report-from').value;
+      const to = document.getElementById('report-to').value;
+      if (!from || !to || from > to) return;
+      reportState.activePreset = null;
+      reportState.fromDate = from;
+      reportState.toDate = to;
+      renderReportTab();
+    });
+  }
+}
+
 // ─── REPORT TAB ───────────────────────────────────────────────────────────────
 function renderReportTab() {
-  // Guard: will be called from state mutations (updateTicketStatus, handleSave, handleSubmit) —
-  // skip the render when the report tab is not currently visible.
+  // Guard: will be called from state mutations — skip when report tab is not visible.
   const reportPanel = document.getElementById('report-tab');
   if (!reportPanel.classList.contains('active')) return;
 
-  const TRACKED = ['Served', 'Ready', 'Preparing'];
-  const tickets = appState.tickets.filter(t => TRACKED.includes(t.status));
   const container = document.getElementById('report-content');
+  const controlsHtml = renderReportDateControlsHtml();
 
-  if (tickets.length === 0) {
-    container.innerHTML = '<p class="report-empty">No orders have been placed yet this session.</p>';
+  const TRACKED = ['Served', 'Ready', 'Preparing'];
+  const allDates = datesInRange(reportState.fromDate, reportState.toDate);
+  const ticketsByDate = allDates
+    .map(d => ({ date: d, tickets: loadOrdersForDate(d).filter(t => TRACKED.includes(t.status)) }))
+    .filter(({ tickets }) => tickets.length > 0);
+  const allTickets = ticketsByDate.flatMap(({ tickets }) => tickets);
+
+  if (allTickets.length === 0) {
+    container.innerHTML = controlsHtml + '<p class="report-empty">No orders for the selected period.</p>';
+    attachReportDateListeners();
     return;
   }
 
-  // ── Summary cards ──────────────────────────────────────────────────────────
+  // ── Summary cards (aggregated) ─────────────────────────────────────────────
   function sumByStatus(status) {
-    return tickets
-      .filter(t => t.status === status)
-      .reduce((s, t) => s + t.total, 0);
+    return allTickets.filter(t => t.status === status).reduce((s, t) => s + t.total, 0);
   }
   const cardsHtml = `
     <div class="report-summary-cards">
@@ -1111,10 +1180,10 @@ function renderReportTab() {
       </div>
     </div>`;
 
-  // ── Item breakdown table ───────────────────────────────────────────────────
+  // ── Item breakdown table (aggregated) ──────────────────────────────────────
   const itemMap = {};
   const menu = getMenu() || [];
-  tickets.forEach(ticket => {
+  allTickets.forEach(ticket => {
     ticket.lineItems.forEach(l => {
       if (!itemMap[l.itemId]) {
         const menuItem = menu.find(m => m.id === l.itemId);
@@ -1184,40 +1253,55 @@ function renderReportTab() {
       </div>
     </div>`;
 
-  // ── Per-order list ─────────────────────────────────────────────────────────
+  // ── Per-order list (grouped by date if multi-day) ──────────────────────────
   const statusClass = { Served: 'status-served', Ready: 'status-ready', Preparing: 'status-preparing' };
-  const sortedTickets = tickets.slice().sort((a, b) => parseInt(a.orderNum.slice(1), 10) - parseInt(b.orderNum.slice(1), 10));
+
+  function renderOrderEntry(ticket) {
+    return `
+      <div class="report-order-entry">
+        <div class="report-order-header">
+          <span>${escHtml(ticket.orderNum)}</span>
+          <span class="status-badge ${statusClass[ticket.status]}">${escHtml(ticket.status)}</span>
+        </div>
+        <div class="report-order-items">
+          ${ticket.lineItems.map(l => {
+            const flavorSuffix = (l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0)
+              ? ` (${l.flavors.map(escHtml).join(' / ')})`
+              : '';
+            return `
+            <div class="report-order-line">
+              <span>${escHtml(l.name)}${flavorSuffix} × ${l.quantity}</span>
+              <span>${formatPrice(l.price * l.quantity)}</span>
+            </div>`;
+          }).join('')}
+          <div class="report-order-total">
+            <span>Total</span>
+            <span>${formatPrice(ticket.total)}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  let ordersInnerHtml;
+  if (allDates.length === 1) {
+    const sorted = allTickets.slice().sort((a, b) => parseInt(a.orderNum.slice(1), 10) - parseInt(b.orderNum.slice(1), 10));
+    ordersInnerHtml = sorted.map(renderOrderEntry).join('');
+  } else {
+    ordersInnerHtml = ticketsByDate.map(({ date, tickets }) => {
+      const sorted = tickets.slice().sort((a, b) => parseInt(a.orderNum.slice(1), 10) - parseInt(b.orderNum.slice(1), 10));
+      const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      return `<div class="report-date-group-heading">${escHtml(label)}</div>` + sorted.map(renderOrderEntry).join('');
+    }).join('');
+  }
+
   const ordersHtml = `
     <div class="report-section">
       <h3>Order Details</h3>
-      <div class="report-orders">
-        ${sortedTickets.map(ticket => `
-          <div class="report-order-entry">
-            <div class="report-order-header">
-              <span>${escHtml(ticket.orderNum)}</span>
-              <span class="status-badge ${statusClass[ticket.status]}">${escHtml(ticket.status)}</span>
-            </div>
-            <div class="report-order-items">
-              ${ticket.lineItems.map(l => {
-                const flavorSuffix = (l.name === 'French Fries' && Array.isArray(l.flavors) && l.flavors.length > 0)
-                  ? ` (${l.flavors.map(escHtml).join(' / ')})`
-                  : '';
-                return `
-                <div class="report-order-line">
-                  <span>${escHtml(l.name)}${flavorSuffix} × ${l.quantity}</span>
-                  <span>${formatPrice(l.price * l.quantity)}</span>
-                </div>`;
-              }).join('')}
-              <div class="report-order-total">
-                <span>Total</span>
-                <span>${formatPrice(ticket.total)}</span>
-              </div>
-            </div>
-          </div>`).join('')}
-      </div>
+      <div class="report-orders">${ordersInnerHtml}</div>
     </div>`;
 
-  container.innerHTML = cardsHtml + tableHtml + ordersHtml;
+  container.innerHTML = controlsHtml + cardsHtml + tableHtml + ordersHtml;
+  attachReportDateListeners();
 }
 
 function openTicketInPanel(id) {
