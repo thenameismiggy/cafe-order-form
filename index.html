@@ -1709,12 +1709,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') hideModal();
 });
 
-// ─── INITIAL RENDER ───────────────────────────────────────────────────────────
-seedMenuIfNeeded();
-seedCategoriesIfNeeded();
-initTabs();
-renderOrderPanel();
-renderTicketCards();
+// ─── STARTUP ──────────────────────────────────────────────────────────────────
+initFirebase();
   </script>
 </body>
 </html>
