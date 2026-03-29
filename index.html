@@ -416,6 +416,44 @@ async function initFirebase() {
   }
 }
 
+function startApp() {
+  // Menu snapshot — updates _menuCache and _idCounter on every change
+  onSnapshot(doc(db, 'config', 'menu'), snap => {
+    if (!snap.exists()) return; // migrateOrSeed() will create it
+    const data = snap.data();
+    _menuCache = data.items;
+    _idCounter = data.idCounter;
+    renderMenuTable();
+    renderOrderPanel();
+  });
+
+  // Categories snapshot — updates _categoriesCache on every change
+  onSnapshot(doc(db, 'config', 'categories'), snap => {
+    if (!snap.exists()) return;
+    _categoriesCache = snap.data().list;
+    renderCategorySection();
+  });
+
+  // Today's orders snapshot — updates appState.tickets on every change
+  onSnapshot(doc(db, 'orders', TODAY_DATE_STR), snap => {
+    if (snap.exists()) {
+      const data = snap.data();
+      appState.tickets = data.tickets;
+      appState.nextOrderNum = data.nextOrderNum;
+      appState.nextTicketId = data.nextTicketId;
+    }
+    // Whether or not the doc exists, re-render the ticket list
+    renderTicketCards();
+  });
+
+  initTabs();
+  renderOrderPanel();
+  renderTicketCards();
+
+  // Migrate from localStorage or seed defaults if Firestore is empty
+  migrateOrSeed();
+}
+
 document.getElementById('auth-submit-btn').addEventListener('click', handlePasswordSubmit);
 document.getElementById('auth-password-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') handlePasswordSubmit();
