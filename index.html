@@ -434,36 +434,26 @@ const appState = {
   editingCategoryIndex: null,
 };
 
-// ─── LOCALSTORAGE HELPERS ─────────────────────────────────────────────────────
-const _MENU_CACHE_EMPTY = Symbol('empty');
-let _menuCache = _MENU_CACHE_EMPTY;
+// ─── MENU STORAGE ─────────────────────────────────────────────────────────────
+let _menuCache = null;
+let _idCounter = 0;
 
 function getMenu() {
-  if (_menuCache !== _MENU_CACHE_EMPTY) return _menuCache;
-  _menuCache = JSON.parse(localStorage.getItem('menu') || 'null');
   return _menuCache;
 }
+
 function saveMenu(menu) {
-  _menuCache = _MENU_CACHE_EMPTY;
-  try {
-    localStorage.setItem('menu', JSON.stringify(menu));
-  } catch (e) {
-    showStorageError();
-  }
+  _menuCache = menu;
+  setDoc(doc(db, 'config', 'menu'), { items: menu, idCounter: _idCounter });
 }
+
 function getIdCounter() {
-  return parseInt(localStorage.getItem('menuIdCounter') || '0', 10);
+  return _idCounter;
 }
-function saveIdCounter(n) {
-  try {
-    localStorage.setItem('menuIdCounter', String(n));
-  } catch (e) {
-    showStorageError();
-  }
-}
+
 function nextMenuId() {
-  const id = getIdCounter();
-  saveIdCounter(id + 1);
+  const id = _idCounter;
+  _idCounter++;
   return id;
 }
 
@@ -601,12 +591,11 @@ const DEFAULT_MENU = [
 // ─── FRIES FLAVORS ────────────────────────────────────────────────────────────
 const FRIES_FLAVORS = ['Cheese', 'BBQ', 'Sour Cream'];
 
-function seedMenuIfNeeded() {
-  if (localStorage.getItem('menu') === null) {
-    saveIdCounter(DEFAULT_MENU.length);
-    const menu = DEFAULT_MENU.map((item, i) => ({ id: i, ...item }));
-    saveMenu(menu);
-  }
+async function seedMenuIfNeeded() {
+  _idCounter = DEFAULT_MENU.length;
+  const menu = DEFAULT_MENU.map((item, i) => ({ id: i, ...item }));
+  _menuCache = menu;
+  await setDoc(doc(db, 'config', 'menu'), { items: menu, idCounter: DEFAULT_MENU.length });
 }
 
 // ─── FORMATTING ───────────────────────────────────────────────────────────────
