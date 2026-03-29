@@ -325,7 +325,24 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
+import { getFirestore, doc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, collection } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+
+// ─── FIREBASE ────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "PASTE_FROM_CONSOLE",
+  authDomain:        "PASTE_FROM_CONSOLE",
+  projectId:         "PASTE_FROM_CONSOLE",
+  storageBucket:     "PASTE_FROM_CONSOLE",
+  messagingSenderId: "PASTE_FROM_CONSOLE",
+  appId:             "PASTE_FROM_CONSOLE",
+};
+const _app = initializeApp(firebaseConfig);
+const db   = getFirestore(_app);
+const auth = getAuth(_app);
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const appState = {
   tickets: [],          // array of ticket objects
