@@ -882,7 +882,7 @@ function renderStoredRecords() {
     });
   });
 
-  document.getElementById('btn-delete-records').addEventListener('click', () => {
+  container.querySelector('#btn-delete-records').addEventListener('click', () => {
     const checked = Array.from(container.querySelectorAll('.stored-record-cb:checked'));
     const count = checked.length;
     if (!confirm(`Delete records for ${count} day${count === 1 ? '' : 's'}? This cannot be undone.`)) return;
