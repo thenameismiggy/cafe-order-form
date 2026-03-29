@@ -172,6 +172,26 @@
     .report-order-total { display: flex; justify-content: space-between; padding-top: 0.5rem; margin-top: 0.35rem; border-top: 1px solid #eee; font-weight: 700; font-size: 0.9rem; }
     .report-empty { color: #aaa; text-align: center; padding: 3rem 1rem; font-size: 0.9rem; }
 
+    /* === REPORT DATE CONTROLS === */
+    .report-date-controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding: 0.85rem 1.1rem; background: #fff; border-radius: 8px; }
+    .preset-btns { display: flex; gap: 0.4rem; }
+    .preset-btn { padding: 0.35rem 0.8rem; border: 1px solid #ddd; border-radius: 20px; background: #f5f5f5; color: #555; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+    .preset-btn:hover { background: #e8e8e8; }
+    .preset-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+    .date-range-inputs { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; color: #555; }
+    .date-range-inputs label { display: flex; align-items: center; gap: 0.3rem; }
+    .date-range-inputs input[type="date"] { padding: 0.3rem 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.82rem; }
+    .date-range-inputs input[type="date"]:focus { outline: 2px solid #1a1a2e; border-color: transparent; }
+    .report-date-group-heading { font-size: 0.85rem; font-weight: 700; color: #666; padding: 0.5rem 0 0.25rem; margin-top: 0.5rem; }
+
+    /* === STORED RECORDS === */
+    .stored-records { background: #fff; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; }
+    .stored-records h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.85rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stored-records-empty { color: #aaa; font-size: 0.88rem; padding: 0.5rem 0; }
+    .stored-record-row { display: flex; align-items: center; gap: 0.65rem; padding: 0.45rem 0; border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+    .stored-record-row:last-child { border-bottom: none; }
+    .stored-records-actions { margin-top: 1rem; }
+
     /* === RESPONSIVE (≤768px) === */
     @media (max-width: 768px) {
       /* Header */
