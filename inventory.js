@@ -26,7 +26,19 @@ async function initInventory() {
 
 // ─── STOCK DEDUCTION ──────────────────────────────────────────────────────────
 async function deductStock(lineItems) {
-  // Implemented in Task 12
+  for (const lineItem of lineItems) {
+    const inv = window.inventoryState[String(lineItem.itemId)];
+    if (!inv) continue; // drink or unconfigured item — skip
+
+    const toDeduct = lineItem.quantity * (inv.servingSize / inv.unitsPerPurchase);
+    const newStock = Math.max(0, inv.currentStock - toDeduct);
+
+    await setDoc(doc(db, 'inventory', String(lineItem.itemId)), { currentStock: newStock }, { merge: true });
+
+    if (newStock <= 0 && typeof window.setMenuItemAvailable === 'function') {
+      window.setMenuItemAvailable(lineItem.itemId, false);
+    }
+  }
 }
 
 // ─── STOCK RESTORATION ────────────────────────────────────────────────────────

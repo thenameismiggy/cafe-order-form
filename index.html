@@ -2261,13 +2261,16 @@ document.getElementById('ticket-cards').addEventListener('change', e => {
   if (!sel) return;
   const id = parseInt(sel.dataset.ticketId, 10);
   const newStatus = sel.value;
+  const ticket = appState.tickets.find(t => t.id === id);
+  if (!ticket) return;
+
   if (newStatus === 'Served') {
-    const ticket = appState.tickets.find(t => t.id === id);
-    if (ticket) {
-      // Revert dropdown visually until confirmed
-      sel.value = ticket.status;
-      showServedModal(ticket);
-    }
+    sel.value = ticket.status;
+    showServedModal(ticket);
+  } else if (newStatus === 'Preparing' && ticket.status !== 'Preparing') {
+    // Deduct stock for food items when ticket moves to Preparing
+    if (typeof window.deductStock === 'function') window.deductStock(ticket.lineItems);
+    updateTicketStatus(id, newStatus);
   } else {
     updateTicketStatus(id, newStatus);
   }
