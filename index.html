@@ -2448,6 +2448,159 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { hideModal(); hideServedModal(); }
 });
 
+// ─── INVENTORY TAB RENDER ─────────────────────────────────────────────────────
+function renderInventoryTab() {
+  if (!document.getElementById('inventory-tab').classList.contains('active')) return;
+  const el = document.getElementById('inventory-content');
+
+  const menu  = getMenu() || [];
+  const food  = menu.filter(i => i.category === 'Food');
+  const inv   = window.inventoryState || {};
+  const items = Object.values(inv);
+
+  // ── Summary cards ──────────────────────────────────────────────────────────
+  const totalValue = items.reduce((s, i) => s + i.currentStock * i.costPerPurchase, 0);
+  const lowCount   = items.filter(i => i.currentStock > 0 && i.currentStock <= i.lowStockThreshold).length;
+  const outCount   = items.filter(i => i.currentStock <= 0).length;
+
+  // ── Item table rows ────────────────────────────────────────────────────────
+  const rowsHtml = food.map(item => {
+    const config = inv[String(item.id)];
+
+    if (!config) {
+      if (invUiState.editingItemId === item.id) return renderInventorySetupForm(item, null);
+      return `<tr class="inv-unconf-row" data-item-id="${item.id}">
+        <td>${escHtml(item.name)}</td>
+        <td colspan="9" class="inv-setup-cell">
+          <button class="btn btn-sm btn-ghost" data-inv-action="setup" data-item-id="${item.id}">+ Set up inventory</button>
+        </td>
+      </tr>`;
+    }
+
+    if (invUiState.editingItemId === item.id) return renderInventorySetupForm(item, config);
+    if (invUiState.restockingItemId === item.id) return renderRestockInlineForm(item, config);
+
+    const servings     = Math.floor(config.currentStock * config.unitsPerPurchase / config.servingSize);
+    const costPerServ  = config.costPerPurchase / (config.unitsPerPurchase / config.servingSize);
+    const revPerServ   = item.price;
+    const margin       = revPerServ > 0 ? ((revPerServ - costPerServ) / revPerServ) * 100 : 0;
+    const stockVal     = config.currentStock * config.costPerPurchase;
+    const stockDisplay = parseFloat(config.currentStock.toFixed(2));
+
+    const marginClass  = margin >= 50 ? 'margin-green' : margin >= 20 ? 'margin-amber' : 'margin-red';
+    const statusClass  = config.currentStock <= 0 ? 'inv-badge-out'
+                       : config.currentStock <= config.lowStockThreshold ? 'inv-badge-low'
+                       : 'inv-badge-ok';
+    const statusText   = config.currentStock <= 0 ? 'Out'
+                       : config.currentStock <= config.lowStockThreshold ? 'Low'
+                       : 'OK';
+    const rowClass     = config.currentStock <= 0 ? 'inv-row-out'
+                       : config.currentStock <= config.lowStockThreshold ? 'inv-row-low'
+                       : '';
+
+    return `<tr class="${rowClass}" data-item-id="${item.id}">
+      <td>${escHtml(item.name)}</td>
+      <td>${stockDisplay} ${escHtml(config.purchaseUnitName)} (${escHtml(config.purchaseUnitSize)})</td>
+      <td>${servings}</td>
+      <td>₱${costPerServ.toFixed(2)}</td>
+      <td>${formatPrice(revPerServ)}</td>
+      <td><span class="margin-badge ${marginClass}">${margin.toFixed(1)}%</span></td>
+      <td>${formatPrice(stockVal)}</td>
+      <td>${config.lowStockThreshold}</td>
+      <td><span class="inv-badge ${statusClass}">${statusText}</span></td>
+      <td class="td-actions">
+        <button class="btn btn-sm btn-ghost" data-inv-action="restock" data-item-id="${item.id}">Restock</button>
+        <button class="btn btn-sm btn-ghost" data-inv-action="edit"    data-item-id="${item.id}">Edit</button>
+        <button class="btn btn-sm btn-danger" data-inv-action="delete" data-item-id="${item.id}">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="report-summary-cards">
+      <div class="summary-card">
+        <div class="summary-card-label">Total Stock Value</div>
+        <div class="summary-card-value">${formatPrice(totalValue)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Low Stock Items</div>
+        <div class="summary-card-value">${lowCount}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Out of Stock</div>
+        <div class="summary-card-value">${outCount}</div>
+      </div>
+    </div>
+    <div class="table-scroll-wrap">
+      <div class="menu-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th><th>Purchase Unit</th><th>Servings Left</th>
+              <th>Cost / Serving</th><th>Revenue / Serving</th><th>Margin %</th>
+              <th>Stock Value</th><th>Low Threshold</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <p style="color:var(--text-3);font-size:0.78rem;padding:0.6rem 1rem;">Based on current menu prices.</p>
+      </div>
+    </div>
+    <div id="inv-restock-log"><!-- loaded async --></div>`;
+
+  renderRestockLog();
+}
+
+// Stub renderers — implemented in later tasks
+function renderInventorySetupForm(item, existingConfig) { return ''; }
+function renderRestockInlineForm(item, config) { return ''; }
+
+async function renderRestockLog() {
+  const container = document.getElementById('inv-restock-log');
+  if (!container) return;
+  container.innerHTML = `<p style="color:var(--text-3);font-size:0.82rem;padding:1rem 0;">Loading restock log…</p>`;
+
+  const inv  = window.inventoryState || {};
+  const menu = getMenu() || [];
+  const entries = [];
+
+  for (const [itemId, config] of Object.entries(inv)) {
+    const menuItem = menu.find(m => m.id === Number(itemId));
+    if (!menuItem) continue;
+    const logSnap = await getDocs(collection(db, 'inventory', itemId, 'restockLog'));
+    logSnap.forEach(d => entries.push({ ...d.data(), itemName: menuItem.name }));
+  }
+
+  entries.sort((a, b) => (b.timestamp?.toMillis() ?? 0) - (a.timestamp?.toMillis() ?? 0));
+  const recent = entries.slice(0, 50);
+
+  if (recent.length === 0) {
+    container.innerHTML = `<div class="inv-section-heading">Restock Log</div><p class="empty-list">No restock events yet.</p>`;
+    return;
+  }
+
+  const rowsHtml = recent.map(e => {
+    const dateStr = e.timestamp ? new Date(e.timestamp.toMillis()).toLocaleString() : '—';
+    return `<tr>
+      <td>${escHtml(dateStr)}</td>
+      <td>${escHtml(e.itemName)}</td>
+      <td>+${e.purchaseUnitsAdded}</td>
+      <td>${e.note ? escHtml(e.note) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="inv-section-heading">Restock Log</div>
+    <div class="table-scroll-wrap">
+      <div class="menu-table">
+        <table>
+          <thead><tr><th>Date / Time</th><th>Item</th><th>Units Added</th><th>Note</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 // ─── INVENTORY BRIDGES ────────────────────────────────────────────────────────
 // Called by inventory.js after each Firestore snapshot to re-render UI.
 window.renderInventoryTab   = () => renderInventoryTab();
@@ -2462,6 +2615,27 @@ window.setMenuItemAvailable = function(menuItemId, available) {
   menu[idx] = { ...menu[idx], available };
   saveMenu(menu);
 };
+
+// ─── INVENTORY TABLE DELEGATION ───────────────────────────────────────────────
+document.getElementById('inventory-content').addEventListener('click', handleInventoryClick);
+
+function handleInventoryClick(e) {
+  const btn = e.target.closest('[data-inv-action]');
+  if (!btn) return;
+  const action = btn.dataset.invAction;
+  const itemId = parseInt(btn.dataset.itemId, 10);
+  if (action === 'setup')  { invUiState.editingItemId = itemId; renderInventoryTab(); }
+  if (action === 'edit')   { invUiState.editingItemId = itemId; renderInventoryTab(); }
+  if (action === 'cancel-inv') { invUiState.editingItemId = null; invUiState.restockingItemId = null; renderInventoryTab(); }
+  if (action === 'restock')    { invUiState.restockingItemId = itemId; invUiState.editingItemId = null; renderInventoryTab(); }
+  if (action === 'delete')     handleInventoryDelete(itemId);
+  if (action === 'save-inv')   handleInventorySave(itemId);
+  if (action === 'save-restock') handleRestockSave(itemId);
+}
+
+function handleInventoryDelete(itemId) { /* Implemented in Task 9 */ }
+function handleInventorySave(itemId)   { /* Implemented in Tasks 7–8 */ }
+function handleRestockSave(itemId)     { /* Implemented in Task 10 */ }
 
 // ─── STARTUP ──────────────────────────────────────────────────────────────────
 initFirebase();
