@@ -1137,6 +1137,7 @@ function startApp() {
   initTabs();
   renderOrderPanel();
   renderTicketCards();
+  if (typeof window.initInventory === 'function') window.initInventory();
 
   // Migrate from localStorage or seed defaults if Firestore is empty
   migrateOrSeed();
@@ -1201,6 +1202,12 @@ const appState = {
   panelOpen: false,     // is the panel showing an order form?
   editingRowId: null,   // id of menu item currently being inline-edited
   editingCategoryIndex: null,
+};
+
+// ─── INVENTORY UI STATE ───────────────────────────────────────────────────────
+const invUiState = {
+  editingItemId:   null, // item id with setup/edit form open in inventory table
+  restockingItemId: null, // item id with restock form open
 };
 
 // ─── MENU STORAGE ─────────────────────────────────────────────────────────────
@@ -2440,6 +2447,21 @@ document.getElementById('served-modal').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { hideModal(); hideServedModal(); }
 });
+
+// ─── INVENTORY BRIDGES ────────────────────────────────────────────────────────
+// Called by inventory.js after each Firestore snapshot to re-render UI.
+window.renderInventoryTab   = () => renderInventoryTab();
+window.renderLowStockBanner = () => renderLowStockBanner();
+
+// Called by inventory.js when stock hits 0 to hide the menu item.
+window.setMenuItemAvailable = function(menuItemId, available) {
+  const menu = getMenu();
+  if (!menu) return;
+  const idx = menu.findIndex(i => i.id === Number(menuItemId));
+  if (idx === -1) return;
+  menu[idx] = { ...menu[idx], available };
+  saveMenu(menu);
+};
 
 // ─── STARTUP ──────────────────────────────────────────────────────────────────
 initFirebase();
