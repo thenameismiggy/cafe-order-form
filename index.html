@@ -2268,8 +2268,18 @@ document.getElementById('ticket-cards').addEventListener('change', e => {
     sel.value = ticket.status;
     showServedModal(ticket);
   } else if (newStatus === 'Preparing' && ticket.status !== 'Preparing') {
-    // Deduct stock for food items when ticket moves to Preparing
     if (typeof window.deductStock === 'function') window.deductStock(ticket.lineItems);
+    updateTicketStatus(id, newStatus);
+  } else if (ticket.status === 'Preparing' && newStatus === 'Pending') {
+    // Offer stock restoration when reverting from Preparing to Pending
+    const inv = window.inventoryState || {};
+    const tracked = ticket.lineItems.filter(l => inv[String(l.itemId)]);
+    if (tracked.length > 0) {
+      const itemList = tracked.map(l => `${l.name} ×${l.quantity}`).join(', ');
+      if (confirm(`Restore stock for this order? ${itemList}`)) {
+        if (typeof window.restoreStock === 'function') window.restoreStock(tracked);
+      }
+    }
     updateTicketStatus(id, newStatus);
   } else {
     updateTicketStatus(id, newStatus);

@@ -43,7 +43,16 @@ async function deductStock(lineItems) {
 
 // ─── STOCK RESTORATION ────────────────────────────────────────────────────────
 async function restoreStock(lineItems) {
-  // Implemented in Task 13
+  for (const lineItem of lineItems) {
+    const inv = window.inventoryState[String(lineItem.itemId)];
+    if (!inv) continue;
+
+    const toRestore = lineItem.quantity * (inv.servingSize / inv.unitsPerPurchase);
+    const newStock  = inv.currentStock + toRestore;
+
+    await setDoc(doc(db, 'inventory', String(lineItem.itemId)), { currentStock: newStock }, { merge: true });
+    // Does NOT re-enable available — staff manage that manually in Admin tab (per spec)
+  }
 }
 
 // ─── SAVE INVENTORY CONFIG ────────────────────────────────────────────────────
