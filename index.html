@@ -1872,6 +1872,7 @@ function renderOrderPanel() {
         <button class="btn btn-success" id="btn-submit">Submit</button>
         <button class="btn btn-ghost"   id="btn-cancel">Cancel</button>
       </div>
+      ${(ticket && ticket.status === 'Preparing') ? '<p class="preparing-note">Note: saving will not restore previously deducted stock.</p>' : ''}
     </div>`;
 
   // Stepper event listeners
@@ -2659,6 +2660,36 @@ async function renderRestockLog() {
     </div>`;
 }
 
+// ─── LOW-STOCK BANNER ─────────────────────────────────────────────────────────
+let _bannerDismissedMsg = null; // message text when user dismissed; reappears if situation changes
+
+function renderLowStockBanner() {
+  const banner  = document.getElementById('low-stock-banner');
+  const msgEl   = document.getElementById('low-stock-banner-msg');
+  if (!banner || !msgEl) return;
+
+  const inv   = window.inventoryState || {};
+  const items = Object.values(inv);
+  const outItems = items.filter(i => i.currentStock <= 0);
+  const lowItems = items.filter(i => i.currentStock > 0 && i.currentStock <= i.lowStockThreshold);
+
+  let message = null;
+  if (outItems.length > 0)      message = 'Some items are out of stock and have been hidden from the menu.';
+  else if (lowItems.length > 0) message = 'Some items are running low. Check the Inventory tab.';
+
+  if (!message) {
+    banner.classList.add('hidden');
+    _bannerDismissedMsg = null;
+    return;
+  }
+
+  // Show banner if: not previously dismissed, OR the situation changed (new message)
+  if (message !== _bannerDismissedMsg) {
+    msgEl.textContent = message;
+    banner.classList.remove('hidden');
+  }
+}
+
 // ─── INVENTORY BRIDGES ────────────────────────────────────────────────────────
 // Called by inventory.js after each Firestore snapshot to re-render UI.
 window.renderInventoryTab   = () => renderInventoryTab();
@@ -2673,6 +2704,12 @@ window.setMenuItemAvailable = function(menuItemId, available) {
   menu[idx] = { ...menu[idx], available };
   saveMenu(menu);
 };
+
+document.getElementById('low-stock-banner-close').addEventListener('click', () => {
+  const msgEl = document.getElementById('low-stock-banner-msg');
+  _bannerDismissedMsg = msgEl?.textContent || null;
+  document.getElementById('low-stock-banner').classList.add('hidden');
+});
 
 // ─── INVENTORY TABLE DELEGATION ───────────────────────────────────────────────
 document.getElementById('inventory-content').addEventListener('click', handleInventoryClick);
