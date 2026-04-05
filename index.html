@@ -2552,7 +2552,33 @@ function renderInventoryTab() {
 }
 
 // Stub renderers — implemented in later tasks
-function renderInventorySetupForm(item, existingConfig) { return ''; }
+function renderInventorySetupForm(item, existingConfig) {
+  const isEdit = existingConfig !== null;
+  const v = existingConfig || {};
+  const warning = isEdit
+    ? `<p class="inv-edit-warning">Note: changing units per purchase or serving size does not adjust current stock — only future deductions use the new values.</p>`
+    : '';
+  return `<tr data-item-id="${item.id}">
+    <td colspan="10">
+      <strong>${escHtml(item.name)}</strong>
+      <form class="inv-inline-form" data-inv-form="${item.id}" novalidate>
+        <label>Purchase unit name<input type="text" name="purchaseUnitName" value="${escHtml(v.purchaseUnitName || '')}" placeholder="pack" required maxlength="40"></label>
+        <label>Unit size (label)<input type="text" name="purchaseUnitSize" value="${escHtml(v.purchaseUnitSize || '')}" placeholder="500g" required maxlength="20"></label>
+        <label>Units per purchase<input type="number" name="unitsPerPurchase" value="${v.unitsPerPurchase ?? ''}" min="1" step="1" required></label>
+        <label>Serving size<input type="number" name="servingSize" value="${v.servingSize ?? ''}" min="1" step="1" required></label>
+        <label>Cost per purchase (₱)<input type="number" name="costPerPurchase" value="${v.costPerPurchase ?? ''}" min="1" step="1" required></label>
+        ${!isEdit ? `<label>Starting stock<input type="number" name="currentStock" value="${v.currentStock ?? ''}" min="0" step="1" required></label>` : ''}
+        <label>Low stock threshold<input type="number" name="lowStockThreshold" value="${v.lowStockThreshold ?? ''}" min="0" step="1" required></label>
+        <div style="display:flex;gap:0.4rem;align-self:flex-end">
+          <button type="button" class="btn btn-sm btn-primary" data-inv-action="save-inv" data-item-id="${item.id}">${isEdit ? 'Update' : 'Save'}</button>
+          <button type="button" class="btn btn-sm btn-ghost"   data-inv-action="cancel-inv" data-item-id="${item.id}">Cancel</button>
+        </div>
+        <p class="inv-form-error" id="inv-form-error-${item.id}"></p>
+        ${warning}
+      </form>
+    </td>
+  </tr>`;
+}
 function renderRestockInlineForm(item, config) { return ''; }
 
 async function renderRestockLog() {
@@ -2634,7 +2660,48 @@ function handleInventoryClick(e) {
 }
 
 function handleInventoryDelete(itemId) { /* Implemented in Task 9 */ }
-function handleInventorySave(itemId)   { /* Implemented in Tasks 7–8 */ }
+async function handleInventorySave(itemId) {
+  const form   = document.querySelector(`[data-inv-form="${itemId}"]`);
+  const errEl  = document.getElementById(`inv-form-error-${itemId}`);
+  if (!form || !errEl) return;
+
+  const get = name => form.querySelector(`[name="${name}"]`);
+  const purchaseUnitName  = get('purchaseUnitName')?.value.trim()      || '';
+  const purchaseUnitSize  = get('purchaseUnitSize')?.value.trim()      || '';
+  const unitsPerPurchase  = parseInt(get('unitsPerPurchase')?.value, 10);
+  const servingSize       = parseInt(get('servingSize')?.value, 10);
+  const costPerPurchase   = parseInt(get('costPerPurchase')?.value, 10);
+  const lowStockThreshold = parseInt(get('lowStockThreshold')?.value, 10);
+  const currentStockEl    = get('currentStock');
+  const currentStock      = currentStockEl ? parseInt(currentStockEl.value, 10) : null;
+
+  errEl.textContent = '';
+  if (!purchaseUnitName)                           { errEl.textContent = 'Purchase unit name is required.'; return; }
+  if (!purchaseUnitSize)                           { errEl.textContent = 'Unit size label is required.'; return; }
+  if (isNaN(unitsPerPurchase) || unitsPerPurchase < 1) { errEl.textContent = 'Units per purchase must be at least 1.'; return; }
+  if (isNaN(servingSize) || servingSize < 1)       { errEl.textContent = 'Serving size must be at least 1.'; return; }
+  if (isNaN(costPerPurchase) || costPerPurchase < 1) { errEl.textContent = 'Cost per purchase must be at least ₱1.'; return; }
+  if (isNaN(lowStockThreshold) || lowStockThreshold < 0) { errEl.textContent = 'Low stock threshold must be 0 or more.'; return; }
+  if (currentStockEl !== null && (isNaN(currentStock) || currentStock < 0)) { errEl.textContent = 'Starting stock must be 0 or more.'; return; }
+
+  const isNew = currentStockEl !== null;
+  const data  = { menuItemId: String(itemId), purchaseUnitName, purchaseUnitSize, unitsPerPurchase, servingSize, costPerPurchase, lowStockThreshold };
+  if (isNew) data.currentStock = currentStock;
+
+  const saveBtn = form.querySelector('[data-inv-action="save-inv"]');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  try {
+    await window.saveInventoryConfig(itemId, data, !isNew);
+    invUiState.editingItemId = null;
+    // renderInventoryTab() will be called by the onSnapshot callback in inventory.js
+  } catch (err) {
+    errEl.textContent = 'Save failed. Please try again.';
+    saveBtn.disabled = false;
+    saveBtn.textContent = isNew ? 'Save' : 'Update';
+  }
+}
 function handleRestockSave(itemId)     { /* Implemented in Task 10 */ }
 
 // ─── STARTUP ──────────────────────────────────────────────────────────────────
