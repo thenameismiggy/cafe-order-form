@@ -2579,7 +2579,26 @@ function renderInventorySetupForm(item, existingConfig) {
     </td>
   </tr>`;
 }
-function renderRestockInlineForm(item, config) { return ''; }
+function renderRestockInlineForm(item, config) {
+  return `<tr data-item-id="${item.id}">
+    <td>${escHtml(item.name)}</td>
+    <td colspan="9">
+      <div class="inv-restock-inline">
+        <label>Units to add
+          <input type="number" id="restock-units-${item.id}" min="1" step="1" placeholder="e.g. 3">
+        </label>
+        <label>Note (optional)
+          <input type="text" id="restock-note-${item.id}" maxlength="80" placeholder="Supplier delivery">
+        </label>
+        <div style="display:flex;gap:0.4rem;align-self:flex-end">
+          <button class="btn btn-sm btn-primary" data-inv-action="save-restock" data-item-id="${item.id}">Confirm</button>
+          <button class="btn btn-sm btn-ghost"   data-inv-action="cancel-inv"   data-item-id="${item.id}">Cancel</button>
+        </div>
+        <p class="inv-form-error" id="restock-error-${item.id}"></p>
+      </div>
+    </td>
+  </tr>`;
+}
 
 async function renderRestockLog() {
   const container = document.getElementById('inv-restock-log');
@@ -2659,7 +2678,26 @@ function handleInventoryClick(e) {
   if (action === 'save-restock') handleRestockSave(itemId);
 }
 
-function handleInventoryDelete(itemId) { /* Implemented in Task 9 */ }
+async function handleInventoryDelete(itemId) {
+  const menu = getMenu() || [];
+  const item = menu.find(i => i.id === itemId);
+  if (!item) return;
+  if (!confirm(`Remove inventory tracking for "${item.name}"? Current stock data and restock log will be deleted.`)) return;
+
+  // Find and disable the Delete button to show loading state
+  const deleteBtn = document.querySelector(`[data-inv-action="delete"][data-item-id="${itemId}"]`);
+  if (deleteBtn) { deleteBtn.disabled = true; deleteBtn.textContent = 'Deleting…'; }
+
+  try {
+    await window.deleteInventoryConfig(itemId);
+    invUiState.editingItemId   = null;
+    invUiState.restockingItemId = null;
+    // renderInventoryTab() triggered by onSnapshot after deletion
+  } catch (err) {
+    if (deleteBtn) { deleteBtn.disabled = false; deleteBtn.textContent = 'Delete'; }
+    alert('Delete failed. Please try again.');
+  }
+}
 async function handleInventorySave(itemId) {
   const form   = document.querySelector(`[data-inv-form="${itemId}"]`);
   const errEl  = document.getElementById(`inv-form-error-${itemId}`);
@@ -2702,7 +2740,30 @@ async function handleInventorySave(itemId) {
     saveBtn.textContent = isNew ? 'Save' : 'Update';
   }
 }
-function handleRestockSave(itemId)     { /* Implemented in Task 10 */ }
+async function handleRestockSave(itemId) {
+  const unitsEl = document.getElementById(`restock-units-${itemId}`);
+  const noteEl  = document.getElementById(`restock-note-${itemId}`);
+  const errEl   = document.getElementById(`restock-error-${itemId}`);
+  if (!unitsEl || !errEl) return;
+
+  const units = parseFloat(unitsEl.value);
+  const note  = noteEl?.value.trim() || '';
+
+  errEl.textContent = '';
+  if (isNaN(units) || units <= 0) { errEl.textContent = 'Enter a positive number of units to add.'; return; }
+
+  const confirmBtn = document.querySelector(`[data-inv-action="save-restock"][data-item-id="${itemId}"]`);
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Saving…'; }
+
+  try {
+    await window.saveRestock(itemId, units, note);
+    invUiState.restockingItemId = null;
+    // renderInventoryTab() triggered by onSnapshot
+  } catch (err) {
+    errEl.textContent = 'Restock failed. Please try again.';
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm'; }
+  }
+}
 
 // ─── STARTUP ──────────────────────────────────────────────────────────────────
 initFirebase();
